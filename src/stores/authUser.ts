@@ -302,6 +302,7 @@ export const useAuthUserStore = defineStore("authUser", () => {
   // Update user using admin service role
   async function updateUser(userId: string, updateData: {
     email?: string;
+    password?: string;
     user_metadata?: Record<string, any>;
   }) {
     loading.value = true;
@@ -331,6 +332,11 @@ export const useAuthUserStore = defineStore("authUser", () => {
       const userIndex = users.value.findIndex(user => user.id === userId);
       if (userIndex !== -1) {
         users.value[userIndex] = updatedUser;
+      }
+
+      // If updating current user, update userData
+      if (userId === userData.value?.id) {
+        userData.value = updatedUser;
       }
 
       return { user: updatedUser };
