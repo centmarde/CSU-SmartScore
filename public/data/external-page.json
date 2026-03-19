@@ -1,10 +1,10 @@
 {
-  "title": "Modern Thesis Template System",
-  "description": "A comprehensive Vue 3 + Vuetify 3 template system designed specifically for academic thesis applications. Features robust authentication, role-based access control, and automated routing with zero-config development experience.",
-  "subtitle": "Streamline Your Academic Development with Professional Templates",
+  "title": "CSU-SmartScore",
+  "description": "An intelligent AI-powered quiz scoring system that automates the grading process for handwritten answers. Features instant feedback for students, streamlined answer key management for teachers, and advanced image analysis capabilities.",
+  "subtitle": "Revolutionize Quiz Grading with AI-Powered Score Analysis",
   "backgroundImage": {
     "src": "/images/markup.png",
-    "alt": "Abstract academic background with geometric patterns",
+    "alt": "AI-powered scoring system background with academic elements",
     "overlay": {
       "enabled": true,
       "color": "rgba(63, 81, 181, 0.15)",
@@ -13,32 +13,32 @@
   },
   "features": [
     {
-      "title": "Built-in Authentication System",
-      "description": "Complete authentication flow with Supabase integration, including login, registration, password reset, and session management with reactive state.",
-      "icon": "mdi-shield-account"
+      "title": "AI-Powered Image Analysis",
+      "description": "Advanced LLM technology extracts meaning from handwritten answers and compares them with answer keys for accurate automated grading.",
+      "icon": "mdi-brain"
     },
     {
-      "title": "Role-Based Auth Guards",
-      "description": "Sophisticated route protection system with user roles, permissions, and automated redirection to ensure secure access to protected resources.",
-      "icon": "mdi-security"
+      "title": "Instant Student Feedback",
+      "description": "Students upload photos of handwritten answers and receive immediate feedback and scores, accelerating the learning process.",
+      "icon": "mdi-lightning-bolt"
     },
     {
-      "title": "Auto-Generated Navigation",
-      "description": "File-based routing system that automatically generates navigation menus, breadcrumbs, and route structures from your page components.",
-      "icon": "mdi-router-wireless"
+      "title": "Teacher Dashboard",
+      "description": "Comprehensive interface for uploading answer keys, viewing student submissions, and overriding AI grading when needed for fairness.",
+      "icon": "mdi-account-supervisor"
     },
     {
-      "title": "Zero-Config Development",
-      "description": "Extensive plugin automation with auto-imports, component registration, and Vuetify-first UI development for rapid thesis application creation.",
-      "icon": "mdi-auto-fix"
+      "title": "Smart Grading Override",
+      "description": "Teachers can review and adjust AI-generated scores for edge cases, ensuring fairness and accuracy in the grading process.",
+      "icon": "mdi-clipboard-check"
     }
   ],
   "version": "1.0.0",
-  "author": "Academic Development Team",
-  "lastUpdated": "2024-12-24",
+  "author": "CSU Development Team",
+  "lastUpdated": "2026-03-19",
   "theme": {
-    "primaryColor": "#3F51B5",
-    "secondaryColor": "#7688e0"
+    "primaryColor": "#F77F00",
+    "secondaryColor": "#003049"
   },
   "ui": {
     "showNavbar": true,
@@ -48,11 +48,11 @@
     "_footerComment": "Select the footer component to use: 1 or 2",
     "footerComponent": "1",
     "navbar": {
-      "title": "Thesis Template System",
-      "icon": "mdi-school",
+      "title": "CSU-SmartScore",
+      "icon": "mdi-clipboard-check-multiple",
       "logo": {
-        "src": "/src/assets/logo.svg",
-        "alt": "Thesis Template System Logo",
+        "src": "/assets/logo.svg",
+        "alt": "CSU-SmartScore Logo",
         "width": 32,
         "height": 32
       },
@@ -83,11 +83,11 @@
       }
     },
     "footer": {
-      "companyName": "Academic Template System",
-      "tagline": "Empowering academic development with modern tools",
-      "icon": "mdi-school-outline",
+      "companyName": "CSU-SmartScore System",
+      "tagline": "Empowering education with AI-powered scoring solutions",
+      "icon": "mdi-clipboard-check-outline",
       "color": "grey-darken-3",
-      "copyright": "Academic Development Team. All rights reserved.",
+      "copyright": "CSU Development Team. All rights reserved.",
       "socialLinks": [
         {
           "platform": "github",
@@ -125,50 +125,50 @@
           "color": "indigo"
         },
         {
-          "name": "Supabase Auth",
-          "icon": "mdi-database-lock",
-          "color": "teal"
+          "name": "AI/ML Integration",
+          "icon": "mdi-brain",
+          "color": "purple"
         }
       ],
       "thesisTeam": {
         "enabled": true,
         "title": "Development Team",
-        "subtitle": "Meet the architects behind your thesis template system",
+        "subtitle": "Meet the architects behind CSU-SmartScore system",
         "members": [
           {
-            "name": "Template Architect",
-            "role": "System Design & Architecture",
-            "avatar": "/images/team/architect.jpg"
+            "name": "AI Systems Architect",
+            "role": "Machine Learning & LLM Integration",
+            "avatar": "/images/team/ai-architect.jpg"
           },
           {
-            "name": "Auth Specialist",
-            "role": "Authentication & Security",
-            "avatar": "/images/team/auth-specialist.jpg"
+            "name": "Full Stack Developer",
+            "role": "Frontend & Backend Development",
+            "avatar": "/images/team/fullstack-dev.jpg"
           },
           {
-            "name": "UI/UX Developer",
-            "role": "Vuetify & Component Design",
-            "avatar": "/images/team/ui-developer.jpg"
+            "name": "UI/UX Designer",
+            "role": "User Experience & Interface Design",
+            "avatar": "/images/team/ui-designer.jpg"
           }
         ]
       }
     }
   },
   "authPage": {
-    "title": "Welcome to Thesis Template System",
-    "subtitle": "Access your academic development workspace with secure authentication",
+    "title": "Welcome to CSU-SmartScore",
+    "subtitle": "Access your intelligent quiz scoring system with secure authentication",
     "layout": {
       "quotePosition": "right"
     },
     "quote": {
-      "text": "The best way to predict the future is to create it.",
-      "author": "Peter Drucker",
-      "source": "Management Consultant",
-      "motivationalText": "Start your academic journey with confidence. Every great thesis begins with the right foundation."
+      "text": "The future of education lies in the intelligent automation of assessment.",
+      "author": "Educational Technology Pioneer",
+      "source": "AI in Education Research",
+      "motivationalText": "Transform your grading process with AI. Every student deserves instant, accurate feedback."
     },
     "backgroundImage": {
       "src": "/images/auth-background.jpg",
-      "alt": "Modern academic workspace with books and technology",
+      "alt": "Modern classroom with AI technology integration",
       "overlay": {
         "enabled": true,
         "color": "rgba(63, 81, 181, 0.1)",

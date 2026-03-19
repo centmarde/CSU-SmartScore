@@ -60,8 +60,9 @@ export const authGuard = async (to: RouteLocationNormalized, from: RouteLocation
             return next("/forbidden");
           }
         } else {
-          console.log('No role ID found in user metadata');
-          // If no role ID, allow access but log the issue
+          console.log('No role ID found in user metadata - denying access to protected pages');
+          // If no role ID (null or undefined), deny access to protected pages
+          return next("/forbidden");
         }
       }
     } catch (error) {

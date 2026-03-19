@@ -1,48 +1,41 @@
-# 🚀 Vue 3 + Vuetify + Supabase Thesis Template
+# 🚀 CSU-SmartScore - AI-Powered Quiz Scoring System
 
 <div align="center">
 
 ![Vue.js](https://img.shields.io/badge/Vue.js-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white)
 ![Vuetify](https://img.shields.io/badge/Vuetify-1867C0?style=for-the-badge&logo=vuetify&logoColor=AEDDFF)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
+![AI/ML](https://img.shields.io/badge/AI%2FML-FF6B35?style=for-the-badge&logo=tensorflow&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-### 🎯 **Zero-Config Auto-Layout Wrapper for Cross-Platform Development**
+### 🎯 **Intelligent Quiz Scoring with AI-Powered Image Analysis**
 
-*Automate your layout phase by simply configuring JSON - No manual component wiring needed!*
+*Revolutionize your grading process with automated handwriting recognition and instant feedback!*
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/centmarde/thesis-template-web-reusable?quickstart=1)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/centmarde/thesis-template-web-reusable)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/centmarde/CSU-SmartScore?quickstart=1)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/centmarde/CSU-SmartScore)
 
 </div>
 
 ---
 
-## ✨ **What Makes This Special?**
+## ✨ **What Makes CSU-SmartScore Special?**
 
-This is a **data-driven, configuration-first** Vue 3 application that eliminates the tedious layout development phase. Instead of manually coding components and layouts, you simply update `external-page.json` and watch your application transform automatically.
+CSU-SmartScore is an **AI-powered quiz scoring system** that revolutionizes the traditional grading process. Using advanced machine learning and image analysis, it automatically evaluates handwritten answers and provides instant feedback to students while giving teachers powerful oversight tools.
 
-### 🎨 **Key Innovation: JSON-Driven UI**
-```json
-{
-  "title": "Your App Title",
-  "features": [...],
-  "navigation": [...],
-  "theme": { "primary": "#1976D2" }
-}
-```
-↓ *Automatically becomes* ↓
-```vue
-<template>
-  <!-- Fully functional, responsive UI components -->
-  <v-app>
-    <v-navigation-drawer>...</v-navigation-drawer>
-    <v-app-bar>{{ data.title }}</v-app-bar>
-    <v-main>...</v-main>
-  </v-app>
-</template>
-```
+### 🧠 **System Workflow**
+
+#### **Student Side:**
+1. **📸 Upload Photo** - Students take a photo of their handwritten answer
+2. **🚀 AI Analysis** - App sends image to backend → LLM extracts meaning
+3. **⚡ Instant Feedback** - LLM compares with answer key and returns score
+4. **📊 Results** - Students receive immediate feedback and explanations
+
+#### **Teacher Side:**
+1. **📝 Upload Answer Keys** - Teachers input correct answers and scoring rubrics
+2. **👀 Monitor Submissions** - View all student submissions and AI-generated scores
+3. **🛠️ Override Capability** - Adjust AI grading when needed for fairness
+4. **📈 Analytics** - Track student performance and identify learning gaps
 
 ---
 
@@ -54,66 +47,72 @@ This is a **data-driven, configuration-first** Vue 3 application that eliminates
 
 ### **Frontend Core**
 - **🖼️ Vue 3** - Composition API with `<script setup>`
-- **🎨 Vuetify 3** - Material Design components **(Styling-Only)**
+- **🎨 Vuetify 3** - Material Design components for UI
 - **📘 TypeScript** - Full type safety with strict config
 - **⚡ Vite** - Lightning-fast dev server & builds
-- **🍍 Pinia** - Intuitive state management
+- **🍍 Pinia** - State management for user sessions
 
 </td>
 <td width="50%">
 
-### **Backend & Services**
-- **🚀 Supabase** - Authentication & Database
-- **🌐 Axios** - HTTP client for data fetching
-- **🔄 Vue Router 4** - File-based auto-routing
-- **🎭 Vue Toastification** - Elegant notifications
-- **📋 Auto-imports** - Zero-import development
+### **Backend & AI Services**
+- **🧠 LLM Integration** - AI-powered text extraction and analysis
+- **📸 Image Processing** - Handwriting recognition from photos
+- **� Supabase** - Authentication & database management
+- **� RESTful APIs** - Seamless data communication
+- **� Real-time Updates** - Instant feedback delivery
 
 </td>
 </tr>
 </table>
 
-### **🤖 Zero-Config Automation**
-| Plugin | Purpose | Auto-Generated |
-|--------|---------|----------------|
-| `unplugin-vue-router` | 📁 **File-based routing** | Routes from `src/pages/*.vue` |
-| `unplugin-vue-components` | 🔧 **Auto-importing** | Global components from `src/components/` |
-| `vite-plugin-vue-layouts-next` | 📐 **Layout system** | Layout wrappers from `src/layouts/` |
-| `unplugin-auto-import` | ⚡ **Composables** | Vue/Pinia/Router APIs without imports |
-| `unplugin-fonts` | 🔤 **Typography** | Google Fonts auto-loading |
+### **🤖 AI-Powered Features**
+| Feature | Purpose | Technology |
+|---------|---------|------------|
+| `Image Recognition` | � **Handwriting Analysis** | Computer Vision + OCR |
+| `Answer Comparison` | � **Semantic Matching** | Natural Language Processing |
+| `Instant Scoring` | ⚡ **Real-time Grading** | Machine Learning Models |
+| `Teacher Override` | 🛠️ **Human-in-the-loop** | Manual Review Interface |
+| `Feedback Generation` | � **Personalized Responses** | Large Language Models |
 
 ---
 
-## 🏗️ **Data-Driven Architecture**
+## 🏗️ **AI Scoring Architecture**
 
-### **Single Source of Truth: `external-page.json`**
+### **Smart Scoring Pipeline**
 ```mermaid
 graph TD
-    A[external-page.json] --> B[Controller Layer]
-    B --> C[Reactive State]
-    C --> D[Vuetify Components]
-    D --> E[Auto-Generated UI]
+    A[Student Upload] --> B[Image Processing]
+    B --> C[OCR + Handwriting Recognition]
+    C --> D[Text Extraction]
+    D --> E[LLM Analysis]
+    E --> F[Answer Comparison]
+    F --> G[Score Generation]
+    G --> H[Instant Feedback]
     
-    A --> F[Theme Configuration]
-    A --> G[Navigation Structure]
-    A --> H[Content Data]
-    A --> I[Feature Flags]
+    I[Teacher Dashboard] --> J[Answer Key Management]
+    J --> K[Manual Override]
+    K --> L[Final Score]
 ```
 
-### **Controller Pattern**
+### **AI Integration Pattern**
 ```typescript
-// src/controller/landingController.ts
-export function useLandingController() {
-  const data = ref<LandingData | null>(null)
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-  
-  const fetchLandingData = async () => {
-    const response = await axios.get<LandingData>('/data/external-page.json')
-    data.value = response.data
+// src/controller/scoringController.ts
+export function useScoringController() {
+  const analyzeAnswer = async (imageFile: File, questionId: string) => {
+    // Send image to AI backend
+    const extractedText = await extractTextFromImage(imageFile)
+    
+    // Compare with answer key using LLM
+    const score = await compareAnswerWithKey(extractedText, questionId)
+    
+    // Generate feedback
+    const feedback = await generateFeedback(extractedText, score)
+    
+    return { score, feedback, extractedText }
   }
   
-  return { data, loading, error, fetchLandingData }
+  return { analyzeAnswer }
 }
 ```
 
@@ -128,8 +127,8 @@ export function useLandingController() {
 ### **Installation**
 ```bash
 # Clone the repository
-git clone https://github.com/centmarde/thesis-template-web-reusable.git
-cd thesis-template-web-reusable
+git clone https://github.com/centmarde/CSU-SmartScore.git
+cd CSU-SmartScore
 
 # Install dependencies
 npm install
@@ -138,11 +137,12 @@ npm install
 npm run dev
 ```
 
-### **Customize Your App**
-1. **📝 Edit Configuration**: Modify `public/data/external-page.json`
-2. **🎨 Adjust Theme**: Update theme colors in the JSON
-3. **📄 Add Pages**: Create `.vue` files in `src/pages/` (auto-routed)
-4. **🧩 Add Components**: Drop components in `src/components/` (auto-imported)
+### **Setup Your Scoring System**
+1. **📝 Configure Settings**: Modify `public/data/external-page.json`
+2. **🎨 Customize Theme**: Update colors and branding
+3. **� Setup AI Backend**: Configure LLM endpoints for scoring
+4. **📚 Add Answer Keys**: Upload quiz questions and answers
+5. **👥 Manage Users**: Set up student and teacher roles
 
 ---
 
@@ -151,58 +151,62 @@ npm run dev
 ```
 src/
 ├── 📱 components/
-│   ├── auth/           # Authentication components
-│   ├── common/         # Shared UI components
-│   └── [feature]/      # Feature-specific components
-├── 🎛️ controller/      # Data fetching & state management
-├── 📄 pages/           # Auto-routed page components
-├── 🗃️ stores/          # Pinia state stores
-├── 🎨 layouts/         # Layout wrapper components
-├── 🔧 plugins/         # Vue plugin configurations
-└── 📚 lib/             # Utility libraries & services
+│   ├── auth/           # Student/Teacher authentication
+│   ├── student/        # Student quiz interface components
+│   ├── teacher/        # Teacher dashboard components
+│   └── common/         # Shared UI components
+├── 🎛️ controller/      # AI scoring & data management
+├── 📄 pages/           # Student & teacher pages
+├── 🗃️ stores/          # Quiz data & user sessions
+├── 🎨 layouts/         # Responsive layout system
+├── 🔧 plugins/         # AI service integrations
+└── 📚 lib/             # Image processing & scoring utilities
 
 public/
 └── 📊 data/
-    └── external-page.json  # 🎯 Main configuration file
+    └── external-page.json  # 🎯 System configuration
 ```
 
 ---
 
 ## 💡 **Core Philosophy**
 
-### **🎯 Configuration Over Code**
-- **Data-Driven**: UI derives from JSON configuration
-- **Zero Manual Wiring**: Components auto-connect to data
-- **Rapid Prototyping**: Change JSON, see instant results
+### **🤖 AI-First Education**
+- **Intelligent Grading**: AI handles routine scoring tasks
+- **Human Oversight**: Teachers maintain final authority
+- **Instant Feedback**: Students learn from immediate responses
+- **Fair Assessment**: Consistent scoring criteria across all submissions
 
-### **🎨 Vuetify-First Styling**
-- **Component-Based**: No custom CSS classes
-- **Design System**: Consistent Material Design
-- **Responsive**: Built-in breakpoint handling
+### **📱 Student-Centered Design**
+- **Easy Upload**: Simple photo capture interface
+- **Quick Results**: Instant score and feedback delivery
+- **Learning Support**: Detailed explanations for improvements
+- **Mobile-Friendly**: Works on any device
 
-### **🔄 MCP-Enhanced Development**
-- **Vuetify MCP**: Component API documentation
-- **Context7**: External library references  
-- **Sequential Thinking**: Complex problem solving
-- **Playwright**: Automated UI testing
+### **�‍🏫 Teacher Empowerment**
+- **Efficient Workflow**: Reduce grading time significantly
+- **Quality Control**: Review and adjust AI decisions
+- **Analytics Dashboard**: Track student progress patterns
+- **Flexible System**: Adaptable to different subjects
 
 ---
 
-## 🤝 **Contributing & Recommendations**
+## 🤝 **Contributing & Future Enhancements**
 
-We welcome contributions and recommendations! This project is designed to:
+We welcome contributions to improve CSU-SmartScore! This project aims to:
 
-- **🚀 Accelerate development** by eliminating boilerplate
-- **📱 Support cross-platform** deployment (Web, PWA, Mobile)
-- **🔧 Simplify maintenance** through configuration-driven updates
-- **📈 Scale efficiently** with modern Vue 3 patterns
+- **🎓 Transform Education** by automating repetitive grading tasks
+- **🤖 Advance AI in Learning** through practical educational applications
+- **⚡ Improve Efficiency** for teachers and faster feedback for students
+- **🌍 Scale Globally** to support educational institutions worldwide
 
 ### **Contribution Areas**
-- 🎨 **UI Components**: New Vuetify component patterns
-- 📊 **Data Schemas**: Enhanced JSON configuration options
-- 🔌 **Integrations**: Additional service integrations
-- 📱 **Platform Support**: Mobile/desktop optimizations
-- 📚 **Documentation**: Usage examples and tutorials
+- 🧠 **AI Models**: Improve handwriting recognition accuracy
+- 📊 **Analytics**: Enhanced performance tracking and insights
+- 🔌 **Integrations**: LMS compatibility (Canvas, Blackboard, etc.)
+- 📱 **Mobile Apps**: Native iOS/Android applications
+- 🌐 **Localization**: Multi-language support
+- 📚 **Subject Expansion**: Support for math equations, diagrams, etc.
 
 ---
 
@@ -214,8 +218,10 @@ This project is open source and available under the [MIT License](LICENSE).
 
 <div align="center">
 
-**🌟 Star this repo if it helps accelerate your development workflow!**
+**🌟 Star this repo if you believe in the future of AI-powered education!**
 
-[🐛 Report Bug](https://github.com/centmarde/thesis-template-web-reusable/issues) • [💡 Request Feature](https://github.com/centmarde/thesis-template-web-reusable/issues) • [💬 Discussions](https://github.com/centmarde/thesis-template-web-reusable/discussions)
+[🐛 Report Bug](https://github.com/centmarde/CSU-SmartScore/issues) • [💡 Request Feature](https://github.com/centmarde/CSU-SmartScore/issues) • [💬 Discussions](https://github.com/centmarde/CSU-SmartScore/discussions)
+
+**Built with ❤️ for educators and students everywhere**
 
 </div>

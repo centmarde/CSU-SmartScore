@@ -123,7 +123,7 @@
               <div class="text-center mb-12">
                 <h2 class="text-h3 font-weight-bold mb-4">Key Features</h2>
                 <p class="text-h6 text-grey-darken-1">
-                  Everything you need for modern academic writing
+                  Advanced AI technology for intelligent quiz scoring and assessment
                 </p>
               </div>
 
@@ -159,41 +159,70 @@
           <section id="about" class="about-section py-16 ">
             <v-container>
               <v-row align="center" justify="center">
-                <v-col cols="12" lg="8" md="10">
+                <v-col cols="12" lg="10" md="12">
                   <div class="text-center">
                     <h2 class="text-h3 font-weight-bold mb-6">
-                      About This Template
+                      About CSU-SmartScore
                     </h2>
 
-                    <div class="pa-8" elevation="4">
+                    <v-card class="pa-8" elevation="4">
                       <v-row align="center">
                         <v-col cols="12" md="8">
-                          <h3 class="text-h4 font-weight-bold mb-4">
-                            Version {{ data.version }}
-                          </h3>
-                          <p class="text-h6 text-grey-darken-1 mb-4">
-                            Created by {{ data.author }}
-                          </p>
-                          <p class="text-body-1 text-grey-darken-2">
-                            Last updated: {{ formatDate(data.lastUpdated) }}
-                          </p>
+                          <div class="text-start">
+                            <h3 class="text-h4 font-weight-bold mb-4">
+                              <v-icon class="me-2" color="primary" icon="mdi-brain" />
+                              AI-Powered Education Revolution
+                            </h3>
+                            <p class="text-body-1 text-grey-darken-2 mb-4">
+                              CSU-SmartScore transforms the traditional grading process by leveraging advanced
+                              artificial intelligence to analyze handwritten quiz answers. Our system provides
+                              instant, accurate feedback to students while empowering teachers with powerful
+                              oversight and analytics tools.
+                            </p>
+                            <div class="d-flex align-center mb-2">
+                              <v-icon class="me-2" color="success" icon="mdi-check-circle" size="20" />
+                              <span class="text-body-2">Version {{ data.version }}</span>
+                            </div>
+                            <div class="d-flex align-center mb-2">
+                              <v-icon class="me-2" color="info" icon="mdi-account-group" size="20" />
+                              <span class="text-body-2">Developed by {{ data.author }}</span>
+                            </div>
+                            <div class="d-flex align-center">
+                              <v-icon class="me-2" color="warning" icon="mdi-calendar-clock" size="20" />
+                              <span class="text-body-2">Last updated: {{ formatDate(data.lastUpdated) }}</span>
+                            </div>
+                          </div>
                         </v-col>
 
                         <v-col cols="12" md="4">
-                          <v-btn
-                            block
-                            class="text-none"
-                            color="primary"
-                            size="large"
-                            variant="elevated"
-                            @click="openDocumentation"
-                          >
-                            <v-icon class="me-2" icon="mdi-book-open" />
-                            Documentation
-                          </v-btn>
+                          <div class="d-flex flex-column ga-3">
+                            <v-btn
+                              block
+                              class="text-none"
+                              color="primary"
+                              size="large"
+                              variant="elevated"
+                              @click="openDocumentation"
+                            >
+                              <v-icon class="me-2" icon="mdi-book-open-variant" />
+                              User Guide
+                            </v-btn>
+
+                            <v-btn
+                              block
+                              class="text-none"
+                              color="secondary"
+                              size="large"
+                              variant="outlined"
+                              @click="openGithub"
+                            >
+                              <v-icon class="me-2" icon="mdi-github" />
+                              Source Code
+                            </v-btn>
+                          </div>
                         </v-col>
                       </v-row>
-                    </div>
+                    </v-card>
                   </div>
                 </v-col>
               </v-row>

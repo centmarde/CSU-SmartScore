@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useDisplay } from 'vuetify'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/stores/authUser'
-import { navigationConfig } from '@/utils/navigation'
+import { useUserPermissions } from '@/composables/useUserPermissions'
 
 // Vuetify display composable for responsive design
 const { smAndDown } = useDisplay()
@@ -14,6 +14,9 @@ const route = useRoute()
 
 // Auth store
 const authStore = useAuthUserStore()
+
+// User permissions composable
+const { getFilteredNavigationGroups, userRoleId, isLoading } = useUserPermissions()
 
 // Reactive state for sidebar
 const isExpanded = ref(true)
@@ -44,11 +47,11 @@ watch(
   { immediate: true }
 )
 
-// Hide sidebar on small screens
-const showSidebar = computed(() => !smAndDown.value)
+// Hide sidebar on small screens or if user has no role
+const showSidebar = computed(() => !smAndDown.value && userRoleId.value !== null && userRoleId.value !== undefined)
 
-// Get navigation groups from shared config
-const navigationGroups = computed(() => navigationConfig)
+// Get filtered navigation groups based on user permissions
+const navigationGroups = computed(() => getFilteredNavigationGroups())
 
 // Helper function to get group expansion state
 const getGroupExpansion = (groupTitle: string) => {
@@ -102,8 +105,22 @@ const handleLogout = async () => {
 
     <!-- Navigation Menu -->
     <v-list nav class="pa-2">
+      <!-- Loading State -->
+      <div v-if="isLoading" class="text-center py-4">
+        <v-progress-circular indeterminate color="primary" size="32" />
+        <p class="text-body-2 mt-2">Loading navigation...</p>
+      </div>
+
+      <!-- No Access Message -->
+      <div v-else-if="navigationGroups.length === 0" class="text-center py-6">
+        <v-icon color="grey" size="48" class="mb-2">mdi-lock-outline</v-icon>
+        <p class="text-body-2 text-grey">No accessible pages</p>
+        <p class="text-caption text-grey">Contact your administrator</p>
+      </div>
+
       <!-- Dynamic Navigation Groups -->
       <div
+        v-else
         v-for="group in navigationGroups"
         :key="group.title"
         class="navigation-group-section"
