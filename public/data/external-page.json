@@ -1,0 +1,179 @@
+{
+  "title": "Modern Thesis Template System",
+  "description": "A comprehensive Vue 3 + Vuetify 3 template system designed specifically for academic thesis applications. Features robust authentication, role-based access control, and automated routing with zero-config development experience.",
+  "subtitle": "Streamline Your Academic Development with Professional Templates",
+  "backgroundImage": {
+    "src": "/images/markup.png",
+    "alt": "Abstract academic background with geometric patterns",
+    "overlay": {
+      "enabled": true,
+      "color": "rgba(63, 81, 181, 0.15)",
+      "opacity": 0.8
+    }
+  },
+  "features": [
+    {
+      "title": "Built-in Authentication System",
+      "description": "Complete authentication flow with Supabase integration, including login, registration, password reset, and session management with reactive state.",
+      "icon": "mdi-shield-account"
+    },
+    {
+      "title": "Role-Based Auth Guards",
+      "description": "Sophisticated route protection system with user roles, permissions, and automated redirection to ensure secure access to protected resources.",
+      "icon": "mdi-security"
+    },
+    {
+      "title": "Auto-Generated Navigation",
+      "description": "File-based routing system that automatically generates navigation menus, breadcrumbs, and route structures from your page components.",
+      "icon": "mdi-router-wireless"
+    },
+    {
+      "title": "Zero-Config Development",
+      "description": "Extensive plugin automation with auto-imports, component registration, and Vuetify-first UI development for rapid thesis application creation.",
+      "icon": "mdi-auto-fix"
+    }
+  ],
+  "version": "1.0.0",
+  "author": "Academic Development Team",
+  "lastUpdated": "2024-12-24",
+  "theme": {
+    "primaryColor": "#3F51B5",
+    "secondaryColor": "#7688e0"
+  },
+  "ui": {
+    "showNavbar": true,
+    "showFooter": true,
+    "_comment": "Select the navbar component to use: 1, 2, 3, or 4",
+    "navbarComponent": "3",
+    "_footerComment": "Select the footer component to use: 1 or 2",
+    "footerComponent": "1",
+    "navbar": {
+      "title": "Thesis Template System",
+      "icon": "mdi-school",
+      "logo": {
+        "src": "/src/assets/logo.svg",
+        "alt": "Thesis Template System Logo",
+        "width": 32,
+        "height": 32
+      },
+      "color": "primary",
+      "elevation": 2,
+      "density": "comfortable",
+      "navigationItems": [
+        {
+          "_comment": "dont change this",
+          "label": "Features",
+          "action": "scroll",
+          "target": "features"
+        },
+        {
+          "_comment": "dont change this",
+          "label": "About",
+          "action": "scroll",
+          "target": "about"
+        }
+      ],
+      "ctaButton": {
+        "label": "Get Started",
+        "variant": "outlined",
+        "color": "on-primary",
+        "action": "navigate",
+        "_comment": "dont change this /auth cause it is linked to the auth page",
+        "target": "/auth"
+      }
+    },
+    "footer": {
+      "companyName": "Academic Template System",
+      "tagline": "Empowering academic development with modern tools",
+      "icon": "mdi-school-outline",
+      "color": "grey-darken-3",
+      "copyright": "Academic Development Team. All rights reserved.",
+      "socialLinks": [
+        {
+          "platform": "github",
+          "icon": "mdi-github",
+          "url": "https://github.com",
+          "label": "GitHub"
+        },
+        {
+          "platform": "twitter",
+          "icon": "mdi-twitter",
+          "url": "https://twitter.com",
+          "label": "Twitter"
+        },
+        {
+          "platform": "linkedin",
+          "icon": "mdi-linkedin",
+          "url": "https://linkedin.com",
+          "label": "LinkedIn"
+        }
+      ],
+      "technologies": [
+        {
+          "name": "Vue 3",
+          "icon": "mdi-vuejs",
+          "color": "green"
+        },
+        {
+          "name": "Vuetify 3",
+          "icon": "mdi-material-design",
+          "color": "blue"
+        },
+        {
+          "name": "TypeScript",
+          "icon": "mdi-language-typescript",
+          "color": "indigo"
+        },
+        {
+          "name": "Supabase Auth",
+          "icon": "mdi-database-lock",
+          "color": "teal"
+        }
+      ],
+      "thesisTeam": {
+        "enabled": true,
+        "title": "Development Team",
+        "subtitle": "Meet the architects behind your thesis template system",
+        "members": [
+          {
+            "name": "Template Architect",
+            "role": "System Design & Architecture",
+            "avatar": "/images/team/architect.jpg"
+          },
+          {
+            "name": "Auth Specialist",
+            "role": "Authentication & Security",
+            "avatar": "/images/team/auth-specialist.jpg"
+          },
+          {
+            "name": "UI/UX Developer",
+            "role": "Vuetify & Component Design",
+            "avatar": "/images/team/ui-developer.jpg"
+          }
+        ]
+      }
+    }
+  },
+  "authPage": {
+    "title": "Welcome to Thesis Template System",
+    "subtitle": "Access your academic development workspace with secure authentication",
+    "layout": {
+      "quotePosition": "right"
+    },
+    "quote": {
+      "text": "The best way to predict the future is to create it.",
+      "author": "Peter Drucker",
+      "source": "Management Consultant",
+      "motivationalText": "Start your academic journey with confidence. Every great thesis begins with the right foundation."
+    },
+    "backgroundImage": {
+      "src": "/images/auth-background.jpg",
+      "alt": "Modern academic workspace with books and technology",
+      "overlay": {
+        "enabled": true,
+        "color": "rgba(63, 81, 181, 0.1)",
+        "opacity": 0.9
+      }
+    }
+  }
+}
