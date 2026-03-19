@@ -57,23 +57,7 @@
           </v-col>
         </v-row>
 
-        <!-- Student Number Field - Only show if Student role is selected -->
-        <v-row no-gutters v-if="isStudentRole">
-          <v-col cols="12">
-            <v-text-field
-              v-model="registerForm.studentNumber"
-              label="Student ID Number"
-              variant="outlined"
-              density="comfortable"
-              :rules="[requiredValidator]"
-              :error-messages="errors.studentNumber"
-              prepend-inner-icon="mdi-school"
-              class="mb-4"
-              hint="Enter your student ID"
-              persistent-hint
-            />
-          </v-col>
-        </v-row>
+
 
         <v-row no-gutters>
           <v-col cols="12">
@@ -197,7 +181,6 @@ const registerForm = reactive({
   username: "",
   email: "",
   role: undefined as number | undefined,
-  studentNumber: "",
   password: "",
   confirmPassword: "",
 });
@@ -210,17 +193,11 @@ const roleOptions = computed(() => {
   }));
 });
 
-// Check if student role is selected (role ID 2 is Student)
-const isStudentRole = computed(() => {
-  return registerForm.role === 2;
-});
-
 // Error handling
 const errors = reactive({
   username: "",
   email: "",
   role: "",
-  studentNumber: "",
   password: "",
   confirmPassword: "",
 });
@@ -230,7 +207,6 @@ const clearErrors = () => {
   errors.username = "";
   errors.email = "";
   errors.role = "";
-  errors.studentNumber = "";
   errors.password = "";
   errors.confirmPassword = "";
 };
@@ -243,12 +219,6 @@ const handleRegister = async () => {
 
   if (!registerForm.role) {
     toast.error("Please select a role");
-    return;
-  }
-
-  // Validate student number if student role is selected
-  if (isStudentRole.value && !registerForm.studentNumber.trim()) {
-    toast.error("Please enter your student number");
     return;
   }
 
@@ -282,8 +252,6 @@ const handleRegister = async () => {
         errors.password = errorMessage;
       } else if (errorMessage.toLowerCase().includes("role")) {
         errors.role = errorMessage;
-      } else if (errorMessage.toLowerCase().includes("student")) {
-        errors.studentNumber = errorMessage;
       }
     } else {
       toast.success(
@@ -305,7 +273,6 @@ const resetForm = () => {
   registerForm.username = "";
   registerForm.email = "";
   registerForm.role = undefined;
-  registerForm.studentNumber = "";
   registerForm.password = "";
   registerForm.confirmPassword = "";
   clearErrors();
