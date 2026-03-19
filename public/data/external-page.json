@@ -51,7 +51,7 @@
       "title": "Thesis Template System",
       "icon": "mdi-school",
       "logo": {
-        "src": "/src/assets/logo.svg",
+        "src": "/assets/logo.svg",
         "alt": "Thesis Template System Logo",
         "width": 32,
         "height": 32
