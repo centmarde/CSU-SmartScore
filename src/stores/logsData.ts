@@ -1,12 +1,28 @@
 import { computed, ref } from "vue";
 import type { Ref } from "vue";
 import { defineStore } from "pinia";
-import { supabase } from "@/lib/supabase";
+import axios from "axios";
 
+// Version log types matching the JSON structure
+export type VersionLogChange = {
+  change: string;
+  type: string;
+}
 
-// Log types following the database schema
+export type VersionLog = {
+  version: string;
+  date: string;
+  title: string;
+  changes: string[];
+}
+
+export type VersionLogsData = {
+  versions: VersionLog[];
+}
+
+// Transformed log type for display (similar to the original LogType)
 export type LogType = {
-  id: number;
+  id: string;
   created_at: string;
   title: string;
   version: string;
@@ -44,24 +60,58 @@ export const useLogsDataStore = defineStore("logsData", () => {
     error.value = "";
   };
 
-  // Fetch all logs
+  // Transform version logs to log format
+  const transformVersionLogsToLogs = (versionLogs: VersionLogsData): LogType[] => {
+    const transformedLogs: LogType[] = [];
+
+    versionLogs.versions.forEach((versionLog, versionIndex) => {
+      // Create a single log entry per version with all changes combined
+      const combinedDescription = versionLog.changes.join('\n• ');
+
+      // Determine the primary type based on the majority of changes
+      const types = versionLog.changes.map(change => {
+        if (change.toLowerCase().includes('feat') || change.toLowerCase().includes('feature')) {
+          return 'feature';
+        } else if (change.toLowerCase().includes('fix')) {
+          return 'fix';
+        }
+        return 'update';
+      });
+
+      // Get the most common type, or default to 'update'
+      const typeCount = types.reduce((acc, type) => {
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const primaryType = Object.entries(typeCount).reduce((a, b) =>
+        typeCount[a[0]] > typeCount[b[0]] ? a : b
+      )[0];
+
+      transformedLogs.push({
+        id: versionLog.version,
+        created_at: versionLog.date + 'T00:00:00.000Z', // Convert date to ISO format
+        title: versionLog.title,
+        version: versionLog.version,
+        description: `• ${combinedDescription}`,
+        type: primaryType
+      });
+    });
+
+    return transformedLogs;
+  };  // Fetch all logs from version-logs.json
   const fetchLogs = async () => {
     loading.value = true;
     clearError();
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("logs")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const response = await axios.get('/data/version-logs.json');
+      const versionLogsData: VersionLogsData = response.data;
 
-      if (fetchError) {
-        throw fetchError;
-      }
-
-        logs.value = data || [];
-      } catch (err) {
-        handleError(err, "Failed to fetch logs");
+      const transformedLogs = transformVersionLogsToLogs(versionLogsData);
+      logs.value = transformedLogs;
+    } catch (err) {
+      handleError(err, "Failed to fetch logs");
     } finally {
       loading.value = false;
     }
@@ -73,17 +123,11 @@ export const useLogsDataStore = defineStore("logsData", () => {
     clearError();
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("logs")
-        .select("*")
-        .eq("type", logType)
-        .order("created_at", { ascending: false });
+      const response = await axios.get('/data/version-logs.json');
+      const versionLogsData: VersionLogsData = response.data;
 
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      logs.value = data || [];
+      const transformedLogs = transformVersionLogsToLogs(versionLogsData);
+      logs.value = transformedLogs.filter(log => log.type === logType);
     } catch (err) {
       handleError(err, `Failed to fetch logs of type "${logType}"`);
     } finally {
@@ -97,19 +141,17 @@ export const useLogsDataStore = defineStore("logsData", () => {
     clearError();
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from("logs")
-        .select("*")
-        .gte("created_at", startDate)
-        .lte("created_at", endDate)
-        .order("created_at", { ascending: false });
+      const response = await axios.get('/data/version-logs.json');
+      const versionLogsData: VersionLogsData = response.data;
 
-      if (fetchError) {
-        throw fetchError;
-      }
+      const transformedLogs = transformVersionLogsToLogs(versionLogsData);
+      const start = new Date(startDate);
+      const end = new Date(endDate);
 
-      logs.value = data || [];
-
+      logs.value = transformedLogs.filter(log => {
+        const logDate = new Date(log.created_at);
+        return logDate >= start && logDate <= end;
+      });
     } catch (err) {
       handleError(err, "Failed to fetch logs for the specified date range");
     } finally {

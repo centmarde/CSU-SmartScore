@@ -45,9 +45,9 @@ const handleLogout = async () => {
 
         <!-- Logs Section -->
         <section class="logs-section">
-          <v-container>
-            <v-row justify="center" align="center">
-              <v-col cols="12" md="12" lg="12">
+          <v-container fluid class="px-2 px-sm-4 px-md-6">
+            <v-row justify="center" align="center" no-gutters>
+              <v-col cols="12" sm="12" md="10" lg="8" xl="6">
                 <HomeLogs />
               </v-col>
             </v-row>

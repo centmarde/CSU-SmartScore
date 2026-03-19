@@ -142,14 +142,31 @@ export function useLandingController (): LandingController {
       loading.value = true
       error.value = null
 
-      const response = await axios.get<LandingData>('/data/external-page.json', {
-        timeout: 5000, // 5 second timeout
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+      // Fetch both external-page.json and version-logs.json
+      const [landingResponse, versionResponse] = await Promise.all([
+        axios.get<LandingData>('/data/external-page.json', {
+          timeout: 5000, // 5 second timeout
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }),
+        axios.get('/data/version-logs.json', {
+          timeout: 5000,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      ])
 
-      data.value = response.data
+      data.value = landingResponse.data
+
+      // Update version with the latest version from version-logs.json
+      if (versionResponse.data?.versions && versionResponse.data.versions.length > 0) {
+        const latestVersion = versionResponse.data.versions[0].version
+        if (data.value) {
+          data.value.version = latestVersion
+        }
+      }
 
       // Initialize dynamic theme from external-page.json
       if (data.value?.theme) {

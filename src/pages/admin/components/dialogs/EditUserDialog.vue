@@ -43,7 +43,7 @@ const formData = reactive({
 })
 
 // Validation rules
-const rules = {
+const rules = computed(() => ({
   email: [
     (v: string) => !!v || 'Email is required',
     (v: string) => /.+@.+\..+/.test(v) || 'Email must be valid'
@@ -52,10 +52,10 @@ const rules = {
     (v: string) => !!v || 'Full name is required',
     (v: string) => v.length >= 2 || 'Full name must be at least 2 characters'
   ],
-  role_id: [
+  role_id: isCurrentUserAdmin.value ? [
     (v: number | null) => v !== null || 'Role is required'
-  ]
-}
+  ] : []
+}))
 
 // Computed
 const roleOptions = computed(() => {
@@ -63,6 +63,10 @@ const roleOptions = computed(() => {
     title: role.title,
     value: role.id
   }))
+})
+
+const isCurrentUserAdmin = computed(() => {
+  return authStore.userRole === 1
 })
 
 // Watch for user changes to populate form
@@ -99,13 +103,19 @@ const handleSubmit = async () => {
 
   updating.value = true
   try {
+    const userMetadata: Record<string, any> = {
+      ...props.user.user_metadata,
+      full_name: formData.full_name
+    }
+
+    // Only update role if current user is admin
+    if (isCurrentUserAdmin.value) {
+      userMetadata.role = formData.role_id
+    }
+
     const updateData = {
       email: formData.email,
-      user_metadata: {
-        ...props.user.user_metadata,
-        full_name: formData.full_name,
-        role: formData.role_id
-      }
+      user_metadata: userMetadata
     }
 
     const result = await authStore.updateUser(props.user.id, updateData)
@@ -168,7 +178,7 @@ const handleClose = () => {
                 />
               </v-col>
 
-              <v-col cols="12">
+              <v-col v-if="isCurrentUserAdmin" cols="12">
                 <v-select
                   v-model="formData.role_id"
                   label="Role"
