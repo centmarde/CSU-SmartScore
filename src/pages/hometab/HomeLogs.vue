@@ -119,27 +119,47 @@ watch(logs, () => {
 </script>
 
 <template>
+  <v-card
+    elevation="2"
+    rounded="lg"
+    class="logs-card"
+  >
 
     <!-- Header Section -->
-    <v-card-title class="d-flex align-center justify-space-between">
+    <v-card-title class="d-flex align-center justify-space-between pa-3 pa-sm-4">
       <div class="d-flex align-center">
-        <v-icon icon="mdi-text-box-outline" class="me-2" color="primary"></v-icon>
-        <span>System Updates</span>
+        <v-icon
+          icon="mdi-text-box-outline"
+          class="me-2 d-none d-sm-flex"
+          color="primary"
+        ></v-icon>
+        <span class="text-h6 text-sm-h5">System Updates</span>
       </div>
 
-      <div class="d-flex align-center ga-2">
+      <div class="d-flex align-center ga-1 ga-sm-2">
         <v-chip
           :color="hasLogs ? 'primary' : 'secondary'"
           variant="tonal"
-          size="small"
+          :size="$vuetify.display.mobile ? 'x-small' : 'small'"
+          class="d-none d-sm-flex"
         >
           {{ logsCount }} Updates
+        </v-chip>
+
+        <!-- Mobile chip -->
+        <v-chip
+          :color="hasLogs ? 'primary' : 'secondary'"
+          variant="tonal"
+          size="x-small"
+          class="d-sm-none"
+        >
+          {{ logsCount }}
         </v-chip>
 
         <v-btn
           icon="mdi-refresh"
           variant="text"
-          size="small"
+          :size="$vuetify.display.mobile ? 'small' : 'default'"
           :loading="isLoading"
           @click="refreshLogs"
         ></v-btn>
@@ -155,48 +175,51 @@ watch(logs, () => {
         v-if="hasError"
         type="error"
         variant="tonal"
-        class="ma-4 mb-0"
+        class="ma-3 ma-sm-4 mb-0"
         closable
         @click:close="logsStore.clearError"
       >
-        {{ error }}
+        <div class="text-body-2 text-sm-body-1">
+          {{ error }}
+        </div>
       </v-alert>
 
       <!-- Loading State -->
-      <div v-if="isLoading && !hasLogs" class="text-center pa-8">
+      <div v-if="isLoading && !hasLogs" class="text-center pa-4 pa-sm-8">
         <v-progress-circular
           indeterminate
           color="primary"
-          size="40"
+          :size="$vuetify.display.mobile ? '32' : '40'"
         ></v-progress-circular>
-        <div class="text-body-2 mt-4 text-medium-emphasis">Loading logs...</div>
+        <div class="text-body-2 text-sm-body-1 mt-3 mt-sm-4 text-medium-emphasis">Loading logs...</div>
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="!isLoading && !hasLogs && !hasError" class="text-center pa-8">
+      <div v-else-if="!isLoading && !hasLogs && !hasError" class="text-center pa-4 pa-sm-8">
         <v-icon
           icon="mdi-text-box-outline"
-          size="64"
+          :size="$vuetify.display.mobile ? '48' : '64'"
           color="grey-lighten-1"
-          class="mb-4"
+          class="mb-3 mb-sm-4"
         ></v-icon>
-        <div class="text-h6 text-medium-emphasis mb-2">No logs available</div>
-        <div class="text-body-2 text-medium-emphasis mb-4">
+        <div class="text-h6 text-sm-h5 text-medium-emphasis mb-2">No logs available</div>
+        <div class="text-body-2 text-sm-body-1 text-medium-emphasis mb-3 mb-sm-4">
           There are no logs to display at the moment.
         </div>
         <v-btn
           color="primary"
           variant="outlined"
+          :size="$vuetify.display.mobile ? 'small' : 'default'"
           @click="refreshLogs"
         >
-          <v-icon icon="mdi-refresh" start></v-icon>
+          <v-icon icon="mdi-refresh" start :size="$vuetify.display.mobile ? '16' : '20'"></v-icon>
           Refresh
         </v-btn>
       </div>
 
       <!-- Timeline Layout -->
-      <div v-else class="pa-2">
-        <div class="mx-auto" style="max-width: 95%;">
+      <div v-else class="pa-1 pa-sm-2">
+        <div class="mx-auto timeline-wrapper">
           <div class="timeline-container">
             <div
               v-for="(log, index) in displayedLogs"
@@ -233,13 +256,14 @@ watch(logs, () => {
                   class="timeline-card"
                 >
                   <!-- Card Header -->
-                  <v-card-title class="pa-4 pb-2">
-                    <div class="d-flex align-center justify-space-between w-100">
-                      <div>
-                        <div class="text-h6 font-weight-bold mb-1">
+                  <v-card-title class="pa-3 pa-sm-4 pb-2">
+                    <div class="d-flex flex-column flex-sm-row align-start align-sm-center justify-space-between w-100 ga-2">
+                      <div class="flex-grow-1">
+                        <div class="text-subtitle-1 text-sm-h6 font-weight-bold mb-1">
                           {{ log.title }}
                         </div>
-                        <div class="d-flex align-center text-caption text-medium-emphasis">
+                        <!-- Desktop version -->
+                        <div class="d-none d-sm-flex align-center text-caption text-medium-emphasis">
                           <v-icon
                             icon="mdi-tag-outline"
                             size="14"
@@ -254,13 +278,32 @@ watch(logs, () => {
                           ></v-icon>
                           {{ getRelativeTime(log.created_at) }}
                         </div>
+                        <!-- Mobile version -->
+                        <div class="d-sm-none text-caption text-medium-emphasis">
+                          <div class="mb-1">
+                            <v-icon
+                              icon="mdi-tag-outline"
+                              size="12"
+                              class="me-1"
+                            ></v-icon>
+                            {{ log.version }}
+                          </div>
+                          <div>
+                            <v-icon
+                              icon="mdi-clock-outline"
+                              size="12"
+                              class="me-1"
+                            ></v-icon>
+                            {{ getRelativeTime(log.created_at) }}
+                          </div>
+                        </div>
                       </div>
 
                       <v-chip
                         :color="getTypeColor(log.type)"
-                        size="small"
+                        :size="$vuetify.display.mobile ? 'x-small' : 'small'"
                         variant="tonal"
-                        class="text-capitalize"
+                        class="text-capitalize flex-shrink-0"
                       >
                         {{ log.type }}
                       </v-chip>
@@ -268,22 +311,24 @@ watch(logs, () => {
                   </v-card-title>
 
                   <!-- Card Content -->
-                  <v-card-text class="pa-4 pt-0">
-                    <div class="text-body-2 text-high-emphasis">
+                  <v-card-text class="pa-3 pa-sm-4 pt-0">
+                    <div class="text-body-2 text-sm-body-1 text-high-emphasis">
                       {{ log.description }}
                     </div>
                   </v-card-text>
 
                   <!-- Card Footer -->
-                  <v-card-actions class="pa-4 pt-0">
+                  <v-card-actions class="pa-3 pa-sm-4 pt-0">
                     <v-spacer></v-spacer>
                     <div class="d-flex align-center text-caption text-medium-emphasis">
                       <v-icon
-                        icon="mdi-calendar"
-                        size="14"
+                        :icon="$vuetify.display.mobile ? 'mdi-calendar' : 'mdi-calendar'"
+                        :size="$vuetify.display.mobile ? '12' : '14'"
                         class="me-1"
                       ></v-icon>
-                      {{ formatDate(log.created_at) }}
+                      <span class="text-caption text-sm-body-2">
+                        {{ formatDate(log.created_at) }}
+                      </span>
                     </div>
                   </v-card-actions>
                 </v-card>
@@ -323,11 +368,11 @@ watch(logs, () => {
                 <v-card
                   elevation="1"
                   rounded="lg"
-                  class="pa-4"
+                  class="pa-3 pa-sm-4"
                   variant="tonal"
                 >
                   <div class="text-center">
-                    <div class="text-body-2 text-medium-emphasis">
+                    <div class="text-body-2 text-sm-body-1 text-medium-emphasis">
                       {{ isLoading ? 'Loading more logs...' : 'Scroll to load more...' }}
                     </div>
                   </div>
@@ -359,15 +404,15 @@ watch(logs, () => {
                 <v-card
                   elevation="1"
                   rounded="lg"
-                  class="pa-4"
+                  class="pa-3 pa-sm-4"
                   variant="tonal"
                   color="success"
                 >
                   <div class="text-center">
-                    <div class="text-body-2 text-success">
+                    <div class="text-body-2 text-sm-body-1 text-success">
                       You've seen all {{ logsCount }} logs
                     </div>
-                    <div class="text-caption text-medium-emphasis mt-1">
+                    <div class="text-caption text-sm-body-2 text-medium-emphasis mt-1">
                       Timeline complete
                     </div>
                   </div>
@@ -378,10 +423,16 @@ watch(logs, () => {
         </div>
       </div>
     </v-card-text>
-
+  </v-card>
 </template>
 
 <style scoped>
+.logs-card {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
 .timeline-container {
   position: relative;
 }
@@ -458,10 +509,35 @@ watch(logs, () => {
   z-index: 1;
 }
 
+/* Timeline wrapper responsive */
+.timeline-wrapper {
+  max-width: 100%;
+}
+
 /* Responsive adjustments */
+@media (min-width: 1280px) {
+  .timeline-wrapper {
+    max-width: 90%;
+  }
+}
+
+@media (min-width: 960px) and (max-width: 1279px) {
+  .timeline-wrapper {
+    max-width: 95%;
+  }
+}
+
+@media (max-width: 959px) {
+  .timeline-wrapper {
+    max-width: 100%;
+  }
+}
+
+/* Small tablets and large phones */
 @media (max-width: 768px) {
   .timeline-line {
     margin-right: 0.75rem;
+    min-width: 28px;
   }
 
   .timeline-dot {
@@ -475,15 +551,72 @@ watch(logs, () => {
     border-top-width: 6px;
     border-bottom-width: 6px;
   }
+
+  .timeline-item {
+    margin-bottom: 1.25rem;
+  }
 }
 
-@media (max-width: 480px) {
+/* Mobile phones */
+@media (max-width: 600px) {
   .timeline-container {
-    padding: 0 0.5rem;
+    padding: 0;
   }
 
   .timeline-line {
     margin-right: 0.5rem;
+    min-width: 24px;
+  }
+
+  .timeline-dot {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .timeline-card::before {
+    left: -8px;
+    border-right-width: 8px;
+    border-top-width: 5px;
+    border-bottom-width: 5px;
+    top: 16px;
+  }
+
+  .timeline-item {
+    margin-bottom: 1rem;
+  }
+
+  .timeline-content {
+    margin-top: -0.125rem;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 480px) {
+  .logs-card {
+    margin: 0;
+    border-radius: 8px !important;
+  }
+
+  .timeline-line {
+    margin-right: 0.375rem;
+    min-width: 20px;
+  }
+
+  .timeline-dot {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .timeline-card {
+    border-radius: 8px !important;
+  }
+
+  .timeline-card::before {
+    left: -6px;
+    border-right-width: 6px;
+    border-top-width: 4px;
+    border-bottom-width: 4px;
+    top: 14px;
   }
 }/* Dark theme adjustments */
 .v-theme--dark .timeline-connector {
