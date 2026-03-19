@@ -5,6 +5,7 @@ import {
   getRoleText,
   formatDate
 } from '@/utils/helpers'
+import { useUserRolesStore } from '@/stores/roles'
 
 interface User {
   id: string
@@ -14,6 +15,7 @@ interface User {
   role_id?: number
   status?: string
   created_at?: string
+  user_metadata?: Record<string, any>
 }
 
 interface Props {
@@ -27,6 +29,17 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Composables
+const rolesStore = useUserRolesStore()
+
+// Computed properties
+const userRoleTitle = computed(() => {
+  if (!props.user?.role_id) return 'Unknown'
+
+  const role = rolesStore.roles.find(role => role.id === props.user?.role_id)
+  return role?.title || 'Unknown'
+})
 
 const closeDialog = () => {
   emit('update:modelValue', false)
@@ -51,10 +64,7 @@ const closeDialog = () => {
 
       <v-card-text class="mt-4">
         <v-list density="compact">
-          <v-list-item prepend-icon="mdi-identifier">
-            <v-list-item-title>Student Number</v-list-item-title>
-            <v-list-item-subtitle>{{ user.student_number || 'N/A' }}</v-list-item-subtitle>
-          </v-list-item>
+
 
           <v-divider class="my-2"></v-divider>
 
@@ -62,8 +72,11 @@ const closeDialog = () => {
             <v-list-item-title>Role</v-list-item-title>
             <v-list-item-subtitle>
               <v-chip :color="getRoleColor(user.role_id)" variant="tonal" size="small">
-                {{ getRoleText(user.role_id) }}
+                {{ userRoleTitle }}
               </v-chip>
+              <div class="text-caption text-grey mt-1">
+                Debug: role_id={{ user.role_id }}, metadata_role={{ user.user_metadata?.role }}
+              </div>
             </v-list-item-subtitle>
           </v-list-item>
 
