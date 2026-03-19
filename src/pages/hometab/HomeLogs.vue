@@ -194,106 +194,185 @@ watch(logs, () => {
         </v-btn>
       </div>
 
-      <!-- Posts Layout (Minimalist Style) -->
+      <!-- Timeline Layout -->
       <div v-else class="pa-2">
-        <div class="mx-auto" style="max-width: 600px;">
-          <div
-            v-for="log in displayedLogs"
-            :key="log.id"
-            class="mb-2"
-          >
-            <!-- Minimalist Post Card -->
-            <v-card
-              elevation="1"
-              rounded="md"
-              class="w-100"
+        <div class="mx-auto" style="max-width: 95%;">
+          <div class="timeline-container">
+            <div
+              v-for="(log, index) in displayedLogs"
+              :key="log.id"
+              class="timeline-item"
+              :class="{ 'timeline-item--last': index === displayedLogs.length - 1 }"
             >
-              <!-- Compact Header -->
-              <v-card-title class="d-flex align-center justify-space-between pa-3 pb-2">
-                <div class="d-flex align-center">
+              <!-- Timeline Line & Dot -->
+              <div class="timeline-line">
+                <div class="timeline-dot-container">
                   <v-avatar
-                    size="24"
+                    size="32"
                     :color="getTypeColor(log.type)"
-                    class="me-2"
+                    class="timeline-dot elevation-2"
                   >
                     <v-icon
                       :icon="getTypeIcon(log.type)"
                       color="white"
-                      size="14"
+                      size="16"
                     ></v-icon>
                   </v-avatar>
-                  <div>
-                    <div class="text-body-1 font-weight-medium">
-                      {{ log.title }}
-                    </div>
-                    <div class="text-caption text-medium-emphasis">
-                      {{ getRelativeTime(log.created_at) }} • v{{ log.version }}
-                    </div>
-                  </div>
                 </div>
+                <div
+                  v-if="index < displayedLogs.length - 1"
+                  class="timeline-connector"
+                ></div>
+              </div>
 
-                <v-chip
-                  :color="getTypeColor(log.type)"
-                  size="x-small"
+              <!-- Timeline Content -->
+              <div class="timeline-content">
+                <v-card
+                  elevation="2"
+                  rounded="lg"
+                  class="timeline-card"
+                >
+                  <!-- Card Header -->
+                  <v-card-title class="pa-4 pb-2">
+                    <div class="d-flex align-center justify-space-between w-100">
+                      <div>
+                        <div class="text-h6 font-weight-bold mb-1">
+                          {{ log.title }}
+                        </div>
+                        <div class="d-flex align-center text-caption text-medium-emphasis">
+                          <v-icon
+                            icon="mdi-tag-outline"
+                            size="14"
+                            class="me-1"
+                          ></v-icon>
+                          {{ log.version }}
+                          <v-divider vertical class="mx-2"></v-divider>
+                          <v-icon
+                            icon="mdi-clock-outline"
+                            size="14"
+                            class="me-1"
+                          ></v-icon>
+                          {{ getRelativeTime(log.created_at) }}
+                        </div>
+                      </div>
+
+                      <v-chip
+                        :color="getTypeColor(log.type)"
+                        size="small"
+                        variant="tonal"
+                        class="text-capitalize"
+                      >
+                        {{ log.type }}
+                      </v-chip>
+                    </div>
+                  </v-card-title>
+
+                  <!-- Card Content -->
+                  <v-card-text class="pa-4 pt-0">
+                    <div class="text-body-2 text-high-emphasis">
+                      {{ log.description }}
+                    </div>
+                  </v-card-text>
+
+                  <!-- Card Footer -->
+                  <v-card-actions class="pa-4 pt-0">
+                    <v-spacer></v-spacer>
+                    <div class="d-flex align-center text-caption text-medium-emphasis">
+                      <v-icon
+                        icon="mdi-calendar"
+                        size="14"
+                        class="me-1"
+                      ></v-icon>
+                      {{ formatDate(log.created_at) }}
+                    </div>
+                  </v-card-actions>
+                </v-card>
+              </div>
+            </div>
+
+            <!-- Load More Sentinel for Intersection Observer -->
+            <div
+              id="load-more-sentinel"
+              v-if="hasMoreLogs"
+              class="timeline-item timeline-loading"
+            >
+              <div class="timeline-line">
+                <div class="timeline-dot-container">
+                  <v-avatar
+                    size="32"
+                    color="primary"
+                    class="timeline-dot elevation-2"
+                  >
+                    <v-progress-circular
+                      v-if="isLoading"
+                      indeterminate
+                      color="white"
+                      size="16"
+                      width="2"
+                    ></v-progress-circular>
+                    <v-icon
+                      v-else
+                      icon="mdi-dots-horizontal"
+                      color="white"
+                      size="16"
+                    ></v-icon>
+                  </v-avatar>
+                </div>
+              </div>
+              <div class="timeline-content">
+                <v-card
+                  elevation="1"
+                  rounded="lg"
+                  class="pa-4"
                   variant="tonal"
                 >
-                  {{ log.type }}
-                </v-chip>
-              </v-card-title>
-
-              <!-- Compact Content -->
-              <v-card-text class="pa-3 pt-0">
-                <div class="text-body-2">
-                  {{ log.description }}
-                </div>
-              </v-card-text>
-
-              <!-- Minimal Footer -->
-              <v-card-actions class="pa-3 pt-0">
-                <div class="d-flex align-center justify-end w-100">
-                  <v-icon
-                    icon="mdi-calendar-clock"
-                    size="14"
-                    class="me-1 text-medium-emphasis"
-                  ></v-icon>
-                  <span class="text-caption text-medium-emphasis">
-                    {{ formatDate(log.created_at) }}
-                  </span>
-                </div>
-              </v-card-actions>
-            </v-card>
-          </div>
-
-          <!-- Load More Sentinel for Intersection Observer -->
-          <div
-            id="load-more-sentinel"
-            v-if="hasMoreLogs"
-            class="text-center py-4"
-          >
-            <v-progress-circular
-              v-if="isLoading"
-              indeterminate
-              color="primary"
-              size="32"
-            ></v-progress-circular>
-            <div v-else class="text-body-2 text-medium-emphasis">
-              Scroll to load more...
+                  <div class="text-center">
+                    <div class="text-body-2 text-medium-emphasis">
+                      {{ isLoading ? 'Loading more logs...' : 'Scroll to load more...' }}
+                    </div>
+                  </div>
+                </v-card>
+              </div>
             </div>
-          </div>
 
-          <!-- End of Posts Message -->
-          <div
-            v-if="!hasMoreLogs && displayedLogs.length > 0"
-            class="text-center py-4"
-          >
-            <v-icon
-              icon="mdi-check-circle-outline"
-              color="success"
-              size="32"
-              class="mb-2"
-            ></v-icon>
-            <div class="text-body-2 text-medium-emphasis">
-              You've seen all {{ logsCount }} logs
+            <!-- End of Timeline Message -->
+            <div
+              v-if="!hasMoreLogs && displayedLogs.length > 0"
+              class="timeline-item timeline-end"
+            >
+              <div class="timeline-line">
+                <div class="timeline-dot-container">
+                  <v-avatar
+                    size="32"
+                    color="success"
+                    class="timeline-dot elevation-2"
+                  >
+                    <v-icon
+                      icon="mdi-check-circle-outline"
+                      color="white"
+                      size="16"
+                    ></v-icon>
+                  </v-avatar>
+                </div>
+              </div>
+              <div class="timeline-content">
+                <v-card
+                  elevation="1"
+                  rounded="lg"
+                  class="pa-4"
+                  variant="tonal"
+                  color="success"
+                >
+                  <div class="text-center">
+                    <div class="text-body-2 text-success">
+                      You've seen all {{ logsCount }} logs
+                    </div>
+                    <div class="text-caption text-medium-emphasis mt-1">
+                      Timeline complete
+                    </div>
+                  </div>
+                </v-card>
+              </div>
             </div>
           </div>
         </div>
@@ -301,3 +380,145 @@ watch(logs, () => {
     </v-card-text>
 
 </template>
+
+<style scoped>
+.timeline-container {
+  position: relative;
+}
+
+.timeline-item {
+  display: flex;
+  margin-bottom: 1.5rem;
+  position: relative;
+  width: 100%;
+}
+
+.timeline-item--last {
+  margin-bottom: 0;
+}
+
+.timeline-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 1rem;
+  z-index: 1;
+  min-width: 32px;
+}
+
+.timeline-dot-container {
+  position: relative;
+  z-index: 2;
+}
+
+.timeline-dot {
+  box-shadow: 0 0 0 4px rgb(var(--v-theme-surface)) !important;
+  border: 2px solid rgb(var(--v-theme-background));
+}
+
+.timeline-connector {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--v-theme-primary)) 0%,
+    rgba(var(--v-theme-primary), 0.3) 50%,
+    rgba(var(--v-theme-primary), 0.1) 100%
+  );
+  margin-top: 0.5rem;
+  min-height: 2rem;
+  border-radius: 1px;
+}
+
+.timeline-content {
+  flex: 1;
+  margin-top: -0.25rem;
+}
+
+.timeline-card {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.timeline-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+}
+
+.timeline-card::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 20px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 12px solid rgb(var(--v-theme-surface));
+  z-index: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .timeline-line {
+    margin-right: 0.75rem;
+  }
+
+  .timeline-dot {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .timeline-card::before {
+    left: -10px;
+    border-right-width: 10px;
+    border-top-width: 6px;
+    border-bottom-width: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .timeline-container {
+    padding: 0 0.5rem;
+  }
+
+  .timeline-line {
+    margin-right: 0.5rem;
+  }
+}/* Dark theme adjustments */
+.v-theme--dark .timeline-connector {
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--v-theme-primary)) 0%,
+    rgba(var(--v-theme-primary), 0.4) 50%,
+    rgba(var(--v-theme-primary), 0.2) 100%
+  );
+}
+
+.v-theme--dark .timeline-card::before {
+  border-right-color: rgb(var(--v-theme-surface));
+}
+
+/* Animation for timeline items */
+.timeline-item {
+  animation: fadeInUp 0.6s ease-out;
+  animation-fill-mode: both;
+}
+
+.timeline-item:nth-child(1) { animation-delay: 0.1s; }
+.timeline-item:nth-child(2) { animation-delay: 0.2s; }
+.timeline-item:nth-child(3) { animation-delay: 0.3s; }
+.timeline-item:nth-child(4) { animation-delay: 0.4s; }
+.timeline-item:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
