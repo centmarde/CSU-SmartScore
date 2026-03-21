@@ -158,16 +158,16 @@ export function useAnswerProcessor() {
    */
   const createAnswerExtractionPrompt = (answerKeyData?: any): string => {
     let prompt = `
-You are an expert at extracting student answers from answer sheet images. Your task is to analyze the provided image and extract the student's answers in a structured format.
+You are an expert at extracting student written answers from answer sheet images. Your task is to analyze the provided image and extract the student's text-based answers (full words, phrases, or short answers) in a structured format.
 
-Please carefully examine the image and extract the student's answers, returning them in the following JSON format:
+Please carefully examine the image and extract the student's written answers (not multiple choice letters), returning them in the following JSON format:
 {
   "answers": [
     {
       "questionNumber": 1,
-      "selectedAnswer": "A",
+      "selectedAnswer": "photosynthesis",
       "confidence": 0.95,
-      "alternatives": ["B"] // if there are multiple markings or unclear answers
+      "alternatives": ["photosynth"] // if there are alternative spellings or unclear text
     }
   ],
   "metadata": {
@@ -179,16 +179,21 @@ Please carefully examine the image and extract the student's answers, returning 
 }
 
 Instructions:
-1. Carefully look at the image for numbered questions and their corresponding answers
-2. Look for common answer formats: A, B, C, D or 1, 2, 3, 4 or bubble markings
-3. If multiple answers are marked for one question, include them in alternatives
-4. Set confidence based on clarity of the marking (high for clear marks, low for unclear/faint marks)
-5. Extract any visible student information (name, ID number, date, etc.)
-6. Handle various answer sheet formats (bubble sheets, written answers, checkboxes, etc.)
-7. If an answer is unclear, missing, or partially marked, mark confidence as low
-8. Pay attention to the sequence of question numbers
-9. Look for any corrections or erasures that might indicate the final intended answer
-10. Return only valid JSON format without any additional text or explanation
+1. Carefully look at the image for numbered questions and their corresponding written answers
+2. Extract full word answers, not just multiple choice letters (A, B, C, D)
+3. Look for written text answers, whether handwritten or typed
+4. If text is unclear or has multiple possible interpretations, include alternatives
+5. Set confidence based on text clarity (high for clear text, low for unclear/illegible text)
+6. Extract any visible student information (name, ID number, date, etc.)
+7. Handle various answer formats (short answers, single words, phrases, numbers, etc.)
+8. If text is partially legible, provide the best interpretation with lower confidence
+9. Pay attention to the sequence of question numbers
+10. Look for any corrections, cross-outs, or erasures that might indicate the final intended answer
+11. For illegible text, try to provide the closest reasonable interpretation
+12. Use OCR-like analysis to extract handwritten or printed text accurately
+13. Focus on actual words, phrases, numbers, or short text responses
+14. Ignore multiple choice bubbles (A, B, C, D) unless they are part of written text
+15. Return only valid JSON format without any additional text or explanation
 `
 
     if (answerKeyData?.questions) {

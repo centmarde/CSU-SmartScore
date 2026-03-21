@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
+import { handleFileSelection, createDragHandlers } from '../utils/getHelpers';
+import { createPreviewUrl, revokePreviewUrl } from '../utils/helpers';
 
 // Props
 interface Props {
@@ -30,28 +32,16 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
  * Validate and process file
  */
 const processFile = (file: File) => {
-  // Validate file type
-  if (!file.type.startsWith('image/')) {
-    console.error('Please select an image file');
-    return false;
-  }
-
-  // Validate file size (max 10MB)
-  const maxSize = 10 * 1024 * 1024; // 10MB
-  if (file.size > maxSize) {
-    console.error('File size must be less than 10MB');
-    return false;
-  }
-
-  selectedFile.value = file;
-
-  // Create preview
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value);
-  }
-  previewUrl.value = URL.createObjectURL(file);
-  console.log('🖼️ Image selected successfully');
-  return true;
+  handleFileSelection(
+    file,
+    (validatedFile) => {
+      selectedFile.value = validatedFile;
+      previewUrl.value = createPreviewUrl(validatedFile, previewUrl.value);
+    },
+    (error) => {
+      console.error(error);
+    }
+  );
 };
 
 /**
@@ -65,33 +55,11 @@ const handleFileChange = (event: Event) => {
   }
 };
 
-/**
- * Handle file drop
- */
-const handleDrop = (event: DragEvent) => {
-  event.preventDefault();
-  isDragging.value = false;
-
-  const files = event.dataTransfer?.files;
-  if (files && files.length > 0) {
-    processFile(files[0]);
-  }
-};
-
-/**
- * Handle drag over
- */
-const handleDragOver = (event: DragEvent) => {
-  event.preventDefault();
-  isDragging.value = true;
-};
-
-/**
- * Handle drag leave
- */
-const handleDragLeave = () => {
-  isDragging.value = false;
-};
+// Create drag handlers
+const { handleDragOver, handleDragLeave, handleDrop } = createDragHandlers(
+  isDragging,
+  processFile
+);
 
 /**
  * Trigger file input click
@@ -105,10 +73,8 @@ const triggerFileInput = () => {
  */
 const removeFile = () => {
   selectedFile.value = null;
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value);
-    previewUrl.value = null;
-  }
+  revokePreviewUrl(previewUrl.value);
+  previewUrl.value = null;
 };
 
 /**
@@ -141,9 +107,7 @@ watch(() => props.modelValue, (isOpen) => {
 
 // Cleanup on unmount
 onUnmounted(() => {
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value);
-  }
+  revokePreviewUrl(previewUrl.value);
 });
 </script>
 

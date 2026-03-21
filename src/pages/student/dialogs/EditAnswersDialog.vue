@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
+import { initializeAnswersFromExtractedData } from '../utils/getHelpers';
+import { getConfidenceColor, getConfidenceText } from '../utils/helpers';
 
 // Props
 interface Props {
@@ -29,7 +31,7 @@ const isSubmitting = ref(false);
 // Computed
 const totalQuestions = computed(() => editableAnswers.value.length);
 const answeredQuestions = computed(() =>
-  editableAnswers.value.filter(answer => answer.selectedAnswer && answer.selectedAnswer !== '').length
+  editableAnswers.value.filter(answer => hasValidAnswer(answer.selectedAnswer)).length
 );
 
 /**
@@ -38,57 +40,13 @@ const answeredQuestions = computed(() =>
 const initializeAnswers = () => {
   if (!props.extractedAnswers) return;
 
-  console.log('🔍 Initializing answers with data:', props.extractedAnswers);
-
-  // Handle different response formats
-  let answersData = props.extractedAnswers;
-  let parsedAnswers = [];
-
-  // Check for different possible structures
-  if (answersData.answers && Array.isArray(answersData.answers)) {
-    parsedAnswers = answersData.answers;
-  } else if (answersData.questions && Array.isArray(answersData.questions)) {
-    parsedAnswers = answersData.questions;
-  } else if (Array.isArray(answersData)) {
-    parsedAnswers = answersData;
-  } else {
-    // Try to parse if it's a string
-    try {
-      const parsed = typeof answersData === 'string' ? JSON.parse(answersData) : answersData;
-      if (parsed.answers && Array.isArray(parsed.answers)) {
-        parsedAnswers = parsed.answers;
-      } else if (parsed.questions && Array.isArray(parsed.questions)) {
-        parsedAnswers = parsed.questions;
-      } else if (Array.isArray(parsed)) {
-        parsedAnswers = parsed;
-      }
-    } catch (e) {
-      console.error('Failed to parse extracted answers:', e);
-      parsedAnswers = [];
-    }
-  }
-
-  console.log('📋 Parsed answers array:', parsedAnswers);
-
   // Extract metadata if available
-  if (answersData.metadata) {
-    studentName.value = answersData.metadata.studentName || '';
-    studentId.value = answersData.metadata.studentId || '';
+  if (props.extractedAnswers.metadata) {
+    studentName.value = props.extractedAnswers.metadata.studentName || '';
+    studentId.value = props.extractedAnswers.metadata.studentId || '';
   }
 
-  // Convert parsed data to editable format
-  editableAnswers.value = parsedAnswers.map((answer: any, index: number) => ({
-    questionNumber: answer.question_number || answer.questionNumber || index + 1,
-    selectedAnswer: answer.correct_answer || answer.selectedAnswer || '',
-    confidence: answer.confidence || 0.5,
-    alternatives: answer.alternatives || [],
-    isManuallyEdited: false
-  }));
-
-  // Sort by question number
-  editableAnswers.value.sort((a, b) => a.questionNumber - b.questionNumber);
-
-  console.log('✅ Final editable answers:', editableAnswers.value);
+  editableAnswers.value = initializeAnswersFromExtractedData(props.extractedAnswers);
 };
 
 /**
@@ -96,7 +54,8 @@ const initializeAnswers = () => {
  */
 const updateAnswer = (index: number, newAnswer: string) => {
   if (editableAnswers.value[index]) {
-    editableAnswers.value[index].selectedAnswer = newAnswer;
+    // Trim whitespace and store the answer
+    editableAnswers.value[index].selectedAnswer = newAnswer.trim();
     editableAnswers.value[index].isManuallyEdited = true;
     editableAnswers.value[index].confidence = 1.0; // High confidence for manual edits
   }
@@ -124,21 +83,10 @@ const removeAnswer = (index: number) => {
 };
 
 /**
- * Get answer choices based on quiz format
+ * Validate if answer has content
  */
-const getAnswerChoices = () => {
-  // Try to determine from answer key if available
-  if (props.answerKeyData?.questions && props.answerKeyData.questions.length > 0) {
-    const firstQuestion = props.answerKeyData.questions[0];
-    if (firstQuestion.choices && Array.isArray(firstQuestion.choices)) {
-      return firstQuestion.choices.map((choice: any, index: number) =>
-        String.fromCharCode(65 + index) // A, B, C, D...
-      );
-    }
-  }
-
-  // Default choices
-  return ['A', 'B', 'C', 'D'];
+const hasValidAnswer = (answer: string): boolean => {
+  return typeof answer === 'string' && answer.trim().length > 0;
 };
 
 /**
@@ -170,7 +118,7 @@ const handleSubmit = async () => {
 
     // Validate answers
     const unansweredQuestions = editableAnswers.value.filter(answer =>
-      !answer.selectedAnswer || answer.selectedAnswer === ''
+      !hasValidAnswer(answer.selectedAnswer)
     );
 
     if (unansweredQuestions.length > 0) {
@@ -215,23 +163,7 @@ const handleClose = () => {
   emit('update:modelValue', false);
 };
 
-/**
- * Get confidence color
- */
-const getConfidenceColor = (confidence: number) => {
-  if (confidence >= 0.8) return 'success';
-  if (confidence >= 0.5) return 'warning';
-  return 'error';
-};
-
-/**
- * Get confidence text
- */
-const getConfidenceText = (confidence: number) => {
-  if (confidence >= 0.8) return 'High';
-  if (confidence >= 0.5) return 'Medium';
-  return 'Low';
-};
+// Helper functions are imported from utils
 
 /**
  * Watch for prop changes
@@ -260,7 +192,7 @@ watch(() => props.extractedAnswers, () => {
     <v-card>
       <v-card-title class="d-flex align-center pa-4 bg-primary">
         <v-icon left color="white">mdi-pencil-box-multiple</v-icon>
-        <span class="text-white">Edit Extracted Answers - {{ quizTitle }}</span>
+        <span class="text-white">Edit Extracted Text Answers - {{ quizTitle }}</span>
         <v-spacer />
         <v-btn
           icon
@@ -325,7 +257,7 @@ watch(() => props.extractedAnswers, () => {
         <!-- Answers Grid -->
         <v-card variant="outlined" v-if="editableAnswers.length > 0">
           <v-card-title class="pa-3">
-            <span>Extracted Answers</span>
+            <span>Extracted Text Answers</span>
             <v-spacer />
             <v-btn
               color="primary"
@@ -349,69 +281,64 @@ watch(() => props.extractedAnswers, () => {
               >
                 <template #prepend>
                   <v-avatar
-                    :color="answer.selectedAnswer ? 'primary' : 'grey-lighten-2'"
+                    :color="hasValidAnswer(answer.selectedAnswer) ? 'primary' : 'grey-lighten-2'"
                     size="32"
                   >
                     <span class="text-body-2">{{ answer.questionNumber }}</span>
                   </v-avatar>
                 </template>
 
-                <v-list-item-title class="d-flex align-center gap-3">
-                  <!-- Question Number Input -->
-                  <v-text-field
-                    v-model.number="answer.questionNumber"
-                    label="Q#"
-                    type="number"
-                    variant="outlined"
-                    density="compact"
-                    style="width: 80px;"
-                    hide-details
-                  />
-
-                  <!-- Answer Selection -->
-                  <v-select
-                    :model-value="answer.selectedAnswer"
-                    @update:model-value="updateAnswer(index, $event)"
-                    :items="getAnswerChoices()"
-                    label="Answer"
-                    variant="outlined"
-                    density="compact"
-                    style="width: 100px;"
-                    hide-details
-                  />
-
-                  <!-- Confidence Indicator -->
-                 <!--  <v-chip
-                    :color="getConfidenceColor(answer.confidence)"
-                    size="small"
-                    variant="tonal"
-                  >
-                    {{ getConfidenceText(answer.confidence) }}
-                  </v-chip> -->
-
-                  <!-- Manual Edit Indicator -->
-                  <v-icon
-                    v-if="answer.isManuallyEdited"
-                    color="primary"
-                    size="small"
-                  >
-                    mdi-pencil
-                  </v-icon>
-
-                  <!-- Alternative Answers -->
-                  <v-tooltip v-if="answer.alternatives && answer.alternatives.length > 0">
-                    <template #activator="{ props: tooltipProps }">
-                      <v-chip
-                        v-bind="tooltipProps"
-                        color="info"
-                        size="small"
+                <v-list-item-title>
+                  <v-row no-gutters class="align-center">
+                    <v-col cols="2">
+                      <!-- Question Number Input -->
+                      <v-text-field
+                        v-model.number="answer.questionNumber"
+                        label="Q#"
+                        type="number"
                         variant="outlined"
+                        density="compact"
+                        hide-details
+                      />
+                    </v-col>
+                    <v-col cols="7" class="px-2">
+                      <!-- Answer Input -->
+                      <v-text-field
+                        :model-value="answer.selectedAnswer"
+                        @update:model-value="updateAnswer(index, $event)"
+                        label="Answer"
+                        variant="outlined"
+                        density="compact"
+                        hide-details
+                        placeholder="Enter full word answer..."
+                      />
+                    </v-col>
+                    <v-col cols="3" class="d-flex align-center gap-2">
+                      <!-- Manual Edit Indicator -->
+                      <v-icon
+                        v-if="answer.isManuallyEdited"
+                        color="primary"
+                        size="small"
                       >
-                        Alt: {{ answer.alternatives.join(', ') }}
-                      </v-chip>
-                    </template>
-                    <span>Alternative answers detected</span>
-                  </v-tooltip>
+                        mdi-pencil
+                      </v-icon>
+
+                      <!-- Alternative Answers -->
+                      <v-tooltip v-if="answer.alternatives && answer.alternatives.length > 0">
+                        <template #activator="{ props: tooltipProps }">
+                          <v-chip
+                            v-bind="tooltipProps"
+                            color="info"
+                            size="small"
+                            variant="outlined"
+                          >
+                            Alt: {{ answer.alternatives.join(', ') }}
+                          </v-chip>
+                        </template>
+                        <span>Alternative answers detected</span>
+                      </v-tooltip>
+                    </v-col>
+                  </v-row>
                 </v-list-item-title>
 
                 <template #append>
@@ -433,9 +360,9 @@ watch(() => props.extractedAnswers, () => {
         <!-- No Answers Message -->
         <v-card v-else variant="outlined" class="text-center pa-8">
           <v-icon size="64" color="grey">mdi-help-circle-outline</v-icon>
-          <div class="text-h6 mt-4 mb-2">No answers detected</div>
+          <div class="text-h6 mt-4 mb-2">No text answers detected</div>
           <div class="text-body-2 text-medium-emphasis mb-4">
-            The system couldn't extract any answers from the image.
+            The system couldn't extract any written answers from the image.
           </div>
           <v-btn
             color="primary"

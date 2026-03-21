@@ -42,6 +42,7 @@ declare module 'vue-router/auto-routes' {
     '/student/dialogs/EditAnswersDialog': RouteRecordInfo<'/student/dialogs/EditAnswersDialog', '/student/dialogs/EditAnswersDialog', Record<never, never>, Record<never, never>>,
     '/student/dialogs/ScoreResultDialog': RouteRecordInfo<'/student/dialogs/ScoreResultDialog', '/student/dialogs/ScoreResultDialog', Record<never, never>, Record<never, never>>,
     '/student/dialogs/SearchResultDialog': RouteRecordInfo<'/student/dialogs/SearchResultDialog', '/student/dialogs/SearchResultDialog', Record<never, never>, Record<never, never>>,
+    '/student/dialogs/StudentDetailsDialog': RouteRecordInfo<'/student/dialogs/StudentDetailsDialog', '/student/dialogs/StudentDetailsDialog', Record<never, never>, Record<never, never>>,
     '/student/dialogs/UploadImageDialog': RouteRecordInfo<'/student/dialogs/UploadImageDialog', '/student/dialogs/UploadImageDialog', Record<never, never>, Record<never, never>>,
     '/student/StudentView': RouteRecordInfo<'/student/StudentView', '/student/StudentView', Record<never, never>, Record<never, never>>,
     '/teachertab/components/TeacherAnswerKeyWidget': RouteRecordInfo<'/teachertab/components/TeacherAnswerKeyWidget', '/teachertab/components/TeacherAnswerKeyWidget', Record<never, never>, Record<never, never>>,

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
+import { startCamera, stopCamera, capturePhoto } from '../utils/getHelpers';
+import { revokePreviewUrl } from '../utils/helpers';
 
 // Props
 interface Props {
@@ -33,74 +35,22 @@ const capturedImage = ref<Blob | null>(null);
 /**
  * Start camera stream
  */
-const startCamera = async () => {
-  try {
-    isCapturing.value = true;
-    stream.value = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }, // Use back camera on mobile
-      audio: false,
-    });
-
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream.value;
-      await videoRef.value.play();
-    }
-    console.log('📹 Camera started successfully');
-  } catch (error) {
-    console.error('Error accessing camera:', error);
-    isCapturing.value = false;
-  }
+const startCameraHandler = () => {
+  startCamera(videoRef, stream, isCapturing);
 };
 
 /**
  * Stop camera stream
  */
-const stopCamera = () => {
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop());
-    stream.value = null;
-  }
-  if (videoRef.value) {
-    videoRef.value.srcObject = null;
-  }
-  isCapturing.value = false;
+const stopCameraHandler = () => {
+  stopCamera(videoRef, stream, isCapturing);
 };
 
 /**
  * Capture photo from camera
  */
-const capturePhoto = () => {
-  if (!videoRef.value || !canvasRef.value) return;
-
-  const video = videoRef.value;
-  const canvas = canvasRef.value;
-
-  // Set canvas dimensions to match video
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-
-  // Draw video frame to canvas
-  const context = canvas.getContext('2d');
-  if (context) {
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Convert canvas to blob
-    canvas.toBlob((blob) => {
-      if (blob) {
-        capturedImage.value = blob;
-
-        // Create preview URL
-        if (previewUrl.value) {
-          URL.revokeObjectURL(previewUrl.value);
-        }
-        previewUrl.value = URL.createObjectURL(blob);
-
-        // Stop camera after capture
-        stopCamera();
-        console.log('📸 Photo captured successfully');
-      }
-    }, 'image/jpeg', 0.95);
-  }
+const capturePhotoHandler = () => {
+  capturePhoto(videoRef, canvasRef, capturedImage, previewUrl, stopCameraHandler);
 };
 
 /**
@@ -108,11 +58,9 @@ const capturePhoto = () => {
  */
 const retakePhoto = () => {
   capturedImage.value = null;
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value);
-    previewUrl.value = null;
-  }
-  startCamera();
+  revokePreviewUrl(previewUrl.value);
+  previewUrl.value = null;
+  startCameraHandler();
 };
 
 /**
@@ -130,12 +78,10 @@ const handleSubmit = () => {
  * Handle dialog close
  */
 const handleClose = () => {
-  stopCamera();
+  stopCameraHandler();
   capturedImage.value = null;
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value);
-    previewUrl.value = null;
-  }
+  revokePreviewUrl(previewUrl.value);
+  previewUrl.value = null;
   emit('update:modelValue', false);
 };
 
@@ -144,21 +90,17 @@ const handleClose = () => {
  */
 watch(() => props.modelValue, (isOpen) => {
   if (!isOpen) {
-    stopCamera();
+    stopCameraHandler();
     capturedImage.value = null;
-    if (previewUrl.value) {
-      URL.revokeObjectURL(previewUrl.value);
-      previewUrl.value = null;
-    }
+    revokePreviewUrl(previewUrl.value);
+    previewUrl.value = null;
   }
 });
 
 // Cleanup on unmount
 onUnmounted(() => {
-  stopCamera();
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value);
-  }
+  stopCameraHandler();
+  revokePreviewUrl(previewUrl.value);
 });
 </script>
 
@@ -227,7 +169,7 @@ onUnmounted(() => {
             v-if="!isCapturing && !capturedImage"
             color="primary"
             variant="flat"
-            @click="startCamera"
+            @click="startCameraHandler"
             prepend-icon="mdi-camera"
           >
             Start Camera
@@ -238,7 +180,7 @@ onUnmounted(() => {
             color="success"
             variant="flat"
             size="large"
-            @click="capturePhoto"
+            @click="capturePhotoHandler"
             prepend-icon="mdi-camera-iris"
           >
             Capture Photo

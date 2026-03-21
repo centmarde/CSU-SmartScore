@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { getScoreColor, getGradeLetter, getAnswerResultColor, getAnswerResultIcon, getPassStatus } from '../utils/helpers';
 
 // Props
 interface Props {
@@ -36,31 +37,9 @@ const emit = defineEmits<{
 
 // Computed
 const scorePercentage = computed(() => props.scoreData?.score || 0);
-const scoreColor = computed(() => {
-  const score = scorePercentage.value;
-  if (score >= 90) return 'success';
-  if (score >= 80) return 'info';
-  if (score >= 70) return 'warning';
-  return 'error';
-});
-
-const scoreGrade = computed(() => {
-  const score = scorePercentage.value;
-  if (score >= 97) return 'A+';
-  if (score >= 93) return 'A';
-  if (score >= 90) return 'A-';
-  if (score >= 87) return 'B+';
-  if (score >= 83) return 'B';
-  if (score >= 80) return 'B-';
-  if (score >= 77) return 'C+';
-  if (score >= 73) return 'C';
-  if (score >= 70) return 'C-';
-  if (score >= 67) return 'D+';
-  if (score >= 65) return 'D';
-  return 'F';
-});
-
-const passStatus = computed(() => scorePercentage.value >= 75);
+const scoreColor = computed(() => getScoreColor(scorePercentage.value));
+const scoreGrade = computed(() => getGradeLetter(scorePercentage.value));
+const passStatus = computed(() => getPassStatus(scorePercentage.value));
 
 /**
  * Handle dialog close
@@ -70,19 +49,7 @@ const handleClose = () => {
   emit('close');
 };
 
-/**
- * Get answer result color
- */
-const getAnswerResultColor = (isCorrect: boolean) => {
-  return isCorrect ? 'success' : 'error';
-};
-
-/**
- * Get answer result icon
- */
-const getAnswerResultIcon = (isCorrect: boolean) => {
-  return isCorrect ? 'mdi-check-circle' : 'mdi-close-circle';
-};
+// Helper functions are imported from utils
 </script>
 
 <template>
