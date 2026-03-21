@@ -38,7 +38,6 @@ declare module 'vue-router/auto-routes' {
     '/hometab/HomeLogs': RouteRecordInfo<'/hometab/HomeLogs', '/hometab/HomeLogs', Record<never, never>, Record<never, never>>,
     '/HomeView': RouteRecordInfo<'/HomeView', '/HomeView', Record<never, never>, Record<never, never>>,
     '/NotFound': RouteRecordInfo<'/NotFound', '/NotFound', Record<never, never>, Record<never, never>>,
-    '/teachertab/components/answerkey/AnswerKeyForm': RouteRecordInfo<'/teachertab/components/answerkey/AnswerKeyForm', '/teachertab/components/answerkey/AnswerKeyForm', Record<never, never>, Record<never, never>>,
     '/teachertab/components/TeacherAnswerKeyWidget': RouteRecordInfo<'/teachertab/components/TeacherAnswerKeyWidget', '/teachertab/components/TeacherAnswerKeyWidget', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/answerkey/AnswerKeyForm': RouteRecordInfo<'/teachertab/dialogs/answerkey/AnswerKeyForm', '/teachertab/dialogs/answerkey/AnswerKeyForm', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/answerkey/ImageCaptureUpload': RouteRecordInfo<'/teachertab/dialogs/answerkey/ImageCaptureUpload', '/teachertab/dialogs/answerkey/ImageCaptureUpload', Record<never, never>, Record<never, never>>,
