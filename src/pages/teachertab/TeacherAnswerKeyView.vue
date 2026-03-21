@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import InnerLayoutWrapper from '@/layouts/InnerLayoutWrapper.vue';
-import TeacherQRWidget from './components/TeacherQRWidget.vue';
+import TeacherAnswerKeyWidget from './components/TeacherAnswerKeyWidget.vue';
 </script>
+
 <template>
   <InnerLayoutWrapper>
     <template #content>
-      <TeacherQRWidget />
+      <TeacherAnswerKeyWidget />
     </template>
   </InnerLayoutWrapper>
 </template>

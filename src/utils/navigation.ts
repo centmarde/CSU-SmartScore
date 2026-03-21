@@ -36,12 +36,13 @@ export const navigationConfig: NavigationGroup[] = [
     icon: 'mdi-school',
     permission: 'teacher.access',
     children: [
+
       {
-        title: 'QR Code Management',
-        icon: 'mdi-qrcode',
-        route: '/teachertab/teacher-qr',
-        permission: 'teacher.qr.manage'
-      },
+        title: 'Answer Keys',
+        icon: 'mdi-key',
+        route: '/teachertab/teacher-answer-key',
+        permission: 'teacher.answerkey.manage'
+      }
     ]
   },
   {

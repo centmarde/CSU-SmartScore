@@ -10,7 +10,7 @@ import AdminUserRolesView from "@/pages/admin/AdminUserRolesView.vue";
 import UserManagementView from "@/pages/admin/UserManagementView.vue";
 import AnnouncementsView from "@/pages/admin/AnnouncementsView.vue";
 import SettingsView from "@/pages/account/SettingsView.vue";
-import TeacherQRView from "@/pages/teachertab/TeacherQRView.vue";
+import TeacherAnswerKeyView from "@/pages/teachertab/TeacherAnswerKeyView.vue";
 
 /**
  * Route definitions for the application
@@ -51,8 +51,8 @@ const routes = setupLayouts([
     meta: { requiresAuth: true }
   },
   {
-    path: "/teachertab/teacher-qr",
-    component: TeacherQRView,
+    path: "/teachertab/teacher-answer-key",
+    component: TeacherAnswerKeyView,
     meta: { requiresAuth: true }
   },
   {
