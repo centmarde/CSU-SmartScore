@@ -46,6 +46,8 @@ declare module 'vue-router/auto-routes' {
     '/teachertab/dialogs/DeleteAnswerKeyDialog': RouteRecordInfo<'/teachertab/dialogs/DeleteAnswerKeyDialog', '/teachertab/dialogs/DeleteAnswerKeyDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/DeleteConfirmationDialog': RouteRecordInfo<'/teachertab/dialogs/DeleteConfirmationDialog', '/teachertab/dialogs/DeleteConfirmationDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/EditAnswerKeysDialog': RouteRecordInfo<'/teachertab/dialogs/EditAnswerKeysDialog', '/teachertab/dialogs/EditAnswerKeysDialog', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/FullImageDialog': RouteRecordInfo<'/teachertab/dialogs/FullImageDialog', '/teachertab/dialogs/FullImageDialog', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/ViewAnswerDialog': RouteRecordInfo<'/teachertab/dialogs/ViewAnswerDialog', '/teachertab/dialogs/ViewAnswerDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/ViewQrCodeDialog': RouteRecordInfo<'/teachertab/dialogs/ViewQrCodeDialog', '/teachertab/dialogs/ViewQrCodeDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/TeacherAnswerKeyView': RouteRecordInfo<'/teachertab/TeacherAnswerKeyView', '/teachertab/TeacherAnswerKeyView', Record<never, never>, Record<never, never>>,
   }
