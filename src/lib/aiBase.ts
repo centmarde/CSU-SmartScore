@@ -18,7 +18,7 @@ interface AnswerKeyData {
 }
 
 /**
- * Groq AI service for processing and refining OCR text into structured answer keys
+ * Groq AI service for processing images and extracting structured answer keys using vision models
  */
 export class GroqAIService {
   private groq: Groq;
@@ -28,6 +28,49 @@ export class GroqAIService {
       apiKey: apiKey,
       dangerouslyAllowBrowser: true // Required for browser usage
     });
+  }
+
+  /**
+   * Process image with vision model only (no OCR)
+   * @param imageBase64 - Base64 encoded image
+   * @returns Structured answer key data
+   */
+  async processImageOnly(imageBase64: string): Promise<AnswerKeyData> {
+    const prompt = this.createVisionOnlyPrompt();
+
+    try {
+      const chatCompletion = await this.groq.chat.completions.create({
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: prompt
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${imageBase64}`
+                }
+              }
+            ]
+          }
+        ],
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Use vision model for image processing
+        temperature: 0.1, // Lower temperature for more consistent results
+        max_completion_tokens: 2048,
+        top_p: 1,
+        stream: false,
+        stop: null
+      });
+
+      const content = chatCompletion.choices[0]?.message?.content || '';
+      return this.parseResponse(content);
+    } catch (error) {
+      console.error('Error with vision-only processing:', error);
+      throw new Error(`Vision processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
@@ -69,91 +112,15 @@ export class GroqAIService {
       const content = chatCompletion.choices[0]?.message?.content || '';
       return this.parseResponse(content);
     } catch (error) {
-      console.error('Error with vision model, falling back to text-only model:', error);
-      return this.processTextOnly(ocrText);
+      console.error('Error with vision model:', error);
+      throw new Error(`Vision processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
-  /**
-   * Fallback processing with text-only model (llama-3.1-8b-instant)
-   * @param ocrText - Raw text extracted from OCR
-   * @returns Structured answer key data
-   */
-  async processTextOnly(ocrText: string): Promise<AnswerKeyData> {
-    const prompt = this.createTextPrompt(ocrText);
 
-    try {
-      const chatCompletion = await this.groq.chat.completions.create({
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        model: 'llama-3.1-8b-instant',
-        temperature: 0.3,
-        max_completion_tokens: 2048,
-        top_p: 1,
-        stream: false,
-        stop: null
-      });
-
-      const content = chatCompletion.choices[0]?.message?.content || '';
-      return this.parseResponse(content);
-    } catch (error) {
-      console.error('Error with text-only model:', error);
-      // Return basic structure if AI fails
-      return this.createFallbackStructure(ocrText);
-    }
-  }
 
   /**
-   * Streaming version of text processing for real-time feedback
-   * @param ocrText - Raw text extracted from OCR
-   * @param onProgress - Callback for streaming progress
-   * @returns Structured answer key data
-   */
-  async processTextOnlyStreaming(ocrText: string, onProgress?: (chunk: string) => void): Promise<AnswerKeyData> {
-    const prompt = this.createTextPrompt(ocrText);
-
-    try {
-      const chatCompletion = await this.groq.chat.completions.create({
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        model: 'llama-3.1-8b-instant',
-        temperature: 0.3,
-        max_completion_tokens: 2048,
-        top_p: 1,
-        stream: true,
-        stop: null
-      });
-
-      let fullContent = '';
-
-      for await (const chunk of chatCompletion) {
-        const content = chunk.choices[0]?.delta?.content || '';
-        if (content) {
-          fullContent += content;
-          if (onProgress) {
-            onProgress(content);
-          }
-        }
-      }
-
-      return this.parseResponse(fullContent);
-    } catch (error) {
-      console.error('Error with streaming text-only model:', error);
-      // Fallback to non-streaming version
-      return this.processTextOnly(ocrText);
-    }
-  }
-
-  /**
-   * Create prompt for vision model processing
+   * Create prompt for vision model processing with OCR text
    */
   private createVisionPrompt(ocrText: string): string {
     return `You are an expert educational assessment analyzer. I have an answer key image and OCR text extracted from it.
@@ -194,21 +161,18 @@ Guidelines:
   }
 
   /**
-   * Create prompt for text-only model processing
+   * Create prompt for vision-only model processing (without OCR text)
    */
-  private createTextPrompt(ocrText: string): string {
-    return `You are an expert educational assessment analyzer. I have OCR text extracted from an answer key image.
+  private createVisionOnlyPrompt(): string {
+    return `You are an expert educational assessment analyzer. I have an answer key image that needs to be analyzed.
 
-OCR Text:
-${ocrText}
-
-Please analyze and structure this answer key information. Return a JSON object with the following structure:
+Please carefully examine this image and extract all answer key information. Return a JSON object with the following structure:
 
 {
   "questions": [
     {
       "question_number": 1,
-      "question_text": "Optional question text if available",
+      "question_text": "Optional question text if clearly visible",
       "correct_answer": "A",
       "answer_type": "multiple_choice",
       "options": ["Option A", "Option B", "Option C", "Option D"],
@@ -224,15 +188,18 @@ Please analyze and structure this answer key information. Return a JSON object w
 }
 
 Guidelines:
-- Extract all answer information from the OCR text
-- Identify question numbers and their corresponding correct answers
+- Carefully read all text in the image
+- Extract question numbers and their corresponding correct answers
 - Determine answer types: multiple_choice, true_false, fill_blank, essay, matching
-- Include question text if available
-- For multiple choice, try to extract options if mentioned
-- Provide accurate question count based on the text
-- Handle common OCR errors and inconsistencies
-- Return valid JSON only, no additional text`;
+- Include question text if clearly readable
+- For multiple choice, extract all visible options
+- Provide accurate question count based on what you can see
+- Look for patterns that indicate answer keys (circles, letters, checkmarks)
+- Pay attention to headers, titles, or labels that might indicate this is an answer key
+- Return valid JSON only, no additional text or explanations`;
   }
+
+
 
   /**
    * Parse AI response into structured data
@@ -305,40 +272,7 @@ Guidelines:
     return validTypes.includes(type as any) ? type as any : 'multiple_choice';
   }
 
-  /**
-   * Create fallback structure when AI processing fails
-   */
-  private createFallbackStructure(ocrText: string): AnswerKeyData {
-    const lines = ocrText.split('\n').filter(line => line.trim());
-    const questions = [];
 
-    // Try to extract basic answer patterns
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      const answerMatch = line.match(/(\d+)[\.\)]\s*([A-D]|TRUE|FALSE|T|F)/i);
-
-      if (answerMatch) {
-        questions.push({
-          question_number: parseInt(answerMatch[1]),
-          question_text: '',
-          correct_answer: answerMatch[2].toUpperCase(),
-          answer_type: 'multiple_choice' as const,
-          options: [],
-          points: 1
-        });
-      }
-    }
-
-    return {
-      questions,
-      metadata: {
-        total_questions: questions.length,
-        subject: 'Unknown',
-        difficulty: 'Unknown',
-        instructions: 'Extracted from OCR with basic pattern matching'
-      }
-    };
-  }
 }
 
 /**

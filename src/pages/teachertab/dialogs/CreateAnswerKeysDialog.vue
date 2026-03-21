@@ -24,10 +24,10 @@ const toast = useToast()
 // Initialize image processor
 const {
   processImage,
-  isProcessing: isOCRProcessing,
-  progress: ocrProgress,
-  currentStatus: ocrStatus,
-  streamingContent: ocrStreamingContent,
+  isProcessing: isImageProcessing,
+  progress: imageProgress,
+  currentStatus: imageStatus,
+  streamingContent: imageStreamingContent,
   cleanup: cleanupImageProcessor
 } = useImageProcessor()
 
@@ -48,10 +48,9 @@ const formData = ref({
   answer_keys: null as any // JSONB field for processed answer key data
 })
 
-// OCR processing state
-const ocrResult = ref<any>(null)
-const ocrText = ref('')
-const processingStep = ref<'uploading' | 'ocr' | 'ai' | 'saving' | 'complete' | null>(null)
+// Image processing state
+const imageResult = ref<any>(null)
+const processingStep = ref<'uploading' | 'ai' | 'saving' | 'complete' | null>(null)
 
 // Form validation
 const titleRules = [
@@ -72,7 +71,7 @@ const isOpen = computed({
   set: (value: boolean) => emit('update:modelValue', value)
 })
 
-const loading = computed(() => answerKeysStore.loading || isOCRProcessing.value)
+const loading = computed(() => answerKeysStore.loading || isImageProcessing.value)
 
 // Functions
 const nextStep = () => {
@@ -118,19 +117,16 @@ const handleImageCaptured = (data: { file: File, preview: string }) => {
   imagePreview.value = data.preview
   showCamera.value = false
   nextStep()
-}// Process image with OCR and AI refinement
-const processImageWithOCR = async (file: File) => {
+}// Process image with AI vision
+const processImageWithAI = async (file: File) => {
   try {
-    processingStep.value = 'ocr'
-
-    // Process the image with streaming enabled for better UX
-    const result = await processImage(file, true)
-
     processingStep.value = 'ai'
 
+    // Process the image directly with AI vision
+    const result = await processImage(file, false)
+
     // Store the results
-    ocrResult.value = result
-    ocrText.value = result.ocrText
+    imageResult.value = result
     formData.value.answer_keys = result.answerKeyData
 
     // Auto-populate title if we found questions
@@ -152,9 +148,8 @@ const processImageWithOCR = async (file: File) => {
   } catch (error) {
     console.error('Error processing image:', error)
     processingStep.value = null
-    // Reset OCR data on error
-    ocrResult.value = null
-    ocrText.value = ''
+    // Reset image processing data on error
+    imageResult.value = null
     formData.value.answer_keys = null
   }
 }
@@ -178,8 +173,7 @@ const resetForm = () => {
   imageFile.value = null
   imagePreview.value = null
   showCamera.value = false
-  ocrResult.value = null
-  ocrText.value = ''
+  imageResult.value = null
   processingStep.value = null
   submissionStatus.value = ''
 }
@@ -201,21 +195,18 @@ const handleSubmit = async () => {
       }
     }
 
-    // Process image with OCR and AI if we have an image
+    // Process image with AI if we have an image
     let processedAnswerKeys = null
     if (imageFile.value) {
-      submissionStatus.value = 'Processing image with OCR and AI...'
-      processingStep.value = 'ocr'
+      submissionStatus.value = 'Processing image with AI...'
+      processingStep.value = 'ai'
 
       try {
-        // Process the image with streaming enabled for better UX
-        const result = await processImage(imageFile.value, true)
+        // Process the image directly with AI vision
+        const result = await processImage(imageFile.value, false)
 
-        processingStep.value = 'ai'
-
-        // Store the OCR results
-        ocrResult.value = result
-        ocrText.value = result.ocrText
+        // Store the results
+        imageResult.value = result
         processedAnswerKeys = result.answerKeyData
 
         // Auto-populate title if we found questions and user hasn't set one
@@ -232,8 +223,8 @@ const handleSubmit = async () => {
           formData.value.description = result.answerKeyData.metadata.instructions
         }
 
-      } catch (ocrError) {
-        console.warn('OCR processing failed, continuing without OCR data:', ocrError)
+      } catch (aiError) {
+        console.warn('AI processing failed, continuing without processed data:', aiError)
         // Continue with manual data entry
       }
     }
@@ -256,7 +247,7 @@ const handleSubmit = async () => {
       processingStep.value = 'complete'
       submissionStatus.value = 'Answer key created successfully!'
 
-      // Show success message with OCR results summary
+      // Show success message with AI processing results summary
       if (processedAnswerKeys?.questions?.length) {
         toast.success(`Answer key created with ${processedAnswerKeys.questions.length} questions detected!`)
       }
@@ -310,18 +301,18 @@ onUnmounted(() => {
           <v-card class="pa-6" min-width="400">
             <v-card-text class="text-center">
               <v-progress-circular
-                :model-value="ocrProgress || 50"
+                :model-value="imageProgress || 50"
                 :size="80"
                 :width="6"
                 color="primary"
                 class="mb-4"
-                :indeterminate="!ocrProgress"
+                :indeterminate="!imageProgress"
               >
-                <span v-if="ocrProgress">{{ Math.round(ocrProgress) }}%</span>
+                <span v-if="imageProgress">{{ Math.round(imageProgress) }}%</span>
               </v-progress-circular>
 
               <h3 class="text-h6 mb-2">Processing Answer Key</h3>
-              <p class="text-body-2 text-medium-emphasis">{{ submissionStatus || ocrStatus }}</p>
+              <p class="text-body-2 text-medium-emphasis">{{ submissionStatus || imageStatus }}</p>
 
               <div class="mt-4">
                 <v-chip
@@ -333,20 +324,12 @@ onUnmounted(() => {
                   Uploading Image
                 </v-chip>
                 <v-chip
-                  v-else-if="processingStep === 'ocr'"
-                  size="small"
-                  color="info"
-                  prepend-icon="mdi-eye"
-                >
-                  Extracting Text (OCR)
-                </v-chip>
-                <v-chip
                   v-else-if="processingStep === 'ai'"
                   size="small"
                   color="success"
                   prepend-icon="mdi-brain"
                 >
-                  AI Analysis & Refinement
+                  AI Vision Analysis
                 </v-chip>
                 <v-chip
                   v-else-if="processingStep === 'saving'"
@@ -359,14 +342,14 @@ onUnmounted(() => {
               </div>
 
               <!-- AI Streaming Content Preview -->
-              <div v-if="ocrStreamingContent && processingStep === 'ai'" class="mt-4">
+              <div v-if="imageStreamingContent && processingStep === 'ai'" class="mt-4">
                 <v-card variant="outlined" class="pa-3">
                   <div class="text-caption text-medium-emphasis mb-2">
                     <v-icon size="small" class="me-1">mdi-lightning-bolt</v-icon>
                     Live AI Processing...
                   </div>
                   <div class="text-body-2" style="max-height: 200px; overflow-y: auto;">
-                    <pre class="text-wrap">{{ ocrStreamingContent }}</pre>
+                    <pre class="text-wrap">{{ imageStreamingContent }}</pre>
                   </div>
                 </v-card>
               </div>
@@ -400,7 +383,7 @@ onUnmounted(() => {
           v-model:form-data="formData"
           :image-preview="imagePreview"
           :image-file-name="imageFile?.name || null"
-          :ocr-result="ocrResult"
+          :image-result="imageResult"
           @edit-image="retakePhoto"
           @submit="handleSubmit"
         />
@@ -433,7 +416,7 @@ onUnmounted(() => {
           :loading="loading"
           :disabled="!formData.title"
         >
-          {{ imageFile ? 'Process Image & Create Answer Key' : 'Create Answer Key' }}
+          {{ imageFile ? 'Process with AI & Create Answer Key' : 'Create Answer Key' }}
         </v-btn>
       </v-card-actions>
     </v-card>

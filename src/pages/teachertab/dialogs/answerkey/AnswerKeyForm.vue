@@ -64,8 +64,8 @@
           </v-card>
         </v-col>
 
-        <!-- OCR Results Display -->
-        <v-col v-if="ocrResult" cols="12">
+        <!-- AI Results Display -->
+        <v-col v-if="imageResult" cols="12">
           <v-expansion-panels variant="accordion">
             <v-expansion-panel>
               <v-expansion-panel-title>
@@ -78,19 +78,19 @@
                     color="success"
                     variant="outlined"
                   >
-                    {{ ocrResult.answerKeyData?.questions?.length || 0 }} Questions Found
+                    {{ imageResult.answerKeyData?.questions?.length || 0 }} Questions Found
                   </v-chip>
                 </div>
               </v-expansion-panel-title>
               <v-expansion-panel-text>
-                <div v-if="ocrResult.answerKeyData?.questions?.length">
+                <div v-if="imageResult.answerKeyData?.questions?.length">
                   <v-row>
                     <!-- Processing Stats -->
                     <v-col cols="12">
                       <v-alert type="success" variant="tonal" class="mb-4">
                         <div class="d-flex justify-space-between">
-                          <span><strong>OCR Confidence:</strong> {{ Math.round(ocrResult.confidence) }}%</span>
-                          <span><strong>Processing Time:</strong> {{ (ocrResult.processingTime / 1000).toFixed(2) }}s</span>
+                          <span><strong>AI Vision Analysis:</strong> Complete</span>
+                          <span><strong>Processing Time:</strong> {{ (imageResult.processingTime / 1000).toFixed(2) }}s</span>
                         </div>
                       </v-alert>
                     </v-col>
@@ -109,7 +109,7 @@
                         </thead>
                         <tbody>
                           <tr
-                            v-for="question in ocrResult.answerKeyData.questions.slice(0, 10)"
+                            v-for="question in imageResult.answerKeyData.questions.slice(0, 10)"
                             :key="question.question_number"
                           >
                             <td>{{ question.question_number }}</td>
@@ -124,28 +124,28 @@
                         </tbody>
                       </v-table>
 
-                      <div v-if="ocrResult.answerKeyData.questions.length > 10" class="text-center mt-2">
+                      <div v-if="imageResult.answerKeyData.questions.length > 10" class="text-center mt-2">
                         <v-chip size="small" variant="outlined">
-                          ... and {{ ocrResult.answerKeyData.questions.length - 10 }} more questions
+                          ... and {{ imageResult.answerKeyData.questions.length - 10 }} more questions
                         </v-chip>
                       </div>
                     </v-col>
 
                     <!-- Subject/Metadata -->
-                    <v-col v-if="ocrResult.answerKeyData?.metadata" cols="12">
+                    <v-col v-if="imageResult.answerKeyData?.metadata" cols="12">
                       <h4 class="text-h6 mb-2">Detected Information</h4>
                       <v-row>
-                        <v-col v-if="ocrResult.answerKeyData.metadata.subject" cols="6">
+                        <v-col v-if="imageResult.answerKeyData.metadata.subject" cols="6">
                           <div class="text-caption">Subject</div>
-                          <div class="text-body-2">{{ ocrResult.answerKeyData.metadata.subject }}</div>
+                          <div class="text-body-2">{{ imageResult.answerKeyData.metadata.subject }}</div>
                         </v-col>
-                        <v-col v-if="ocrResult.answerKeyData.metadata.difficulty" cols="6">
+                        <v-col v-if="imageResult.answerKeyData.metadata.difficulty" cols="6">
                           <div class="text-caption">Difficulty</div>
-                          <div class="text-body-2">{{ ocrResult.answerKeyData.metadata.difficulty }}</div>
+                          <div class="text-body-2">{{ imageResult.answerKeyData.metadata.difficulty }}</div>
                         </v-col>
-                        <v-col v-if="ocrResult.answerKeyData.metadata.instructions" cols="12">
+                        <v-col v-if="imageResult.answerKeyData.metadata.instructions" cols="12">
                           <div class="text-caption">Instructions</div>
-                          <div class="text-body-2">{{ ocrResult.answerKeyData.metadata.instructions }}</div>
+                          <div class="text-body-2">{{ imageResult.answerKeyData.metadata.instructions }}</div>
                         </v-col>
                       </v-row>
                     </v-col>
@@ -158,18 +158,7 @@
               </v-expansion-panel-text>
             </v-expansion-panel>
 
-            <!-- Raw OCR Text -->
-            <v-expansion-panel>
-              <v-expansion-panel-title>
-                <div class="d-flex align-center">
-                  <v-icon class="me-2" color="info">mdi-eye</v-icon>
-                  <span>Raw OCR Text</span>
-                </div>
-              </v-expansion-panel-title>
-              <v-expansion-panel-text>
-                <pre class="text-caption">{{ ocrResult.ocrText || 'No text extracted' }}</pre>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
+
           </v-expansion-panels>
         </v-col>
       </v-row>
@@ -190,7 +179,7 @@ interface Props {
   formData: FormData
   imagePreview: string | null
   imageFileName: string | null
-  ocrResult?: any
+  imageResult?: any
 }
 
 interface Emits {
