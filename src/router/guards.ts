@@ -9,6 +9,7 @@ import type { RouteLocationNormalized, NavigationGuardNext, Router } from 'vue-r
 export const authGuard = async (to: RouteLocationNormalized, from: RouteLocationNormalized, next: NavigationGuardNext) => {
   const isLoggedIn = localStorage.getItem("access_token") !== null;
   const publicPages = ["/", "/auth"];
+  const isStudentQuizPage = to.path.startsWith("/student/quiz/");
   const toast = useToast();
 
   // If user is not authenticated and trying to access protected page
@@ -17,8 +18,8 @@ export const authGuard = async (to: RouteLocationNormalized, from: RouteLocation
     return next("/auth");
   }
 
-  // If user is authenticated and trying to access public/auth pages, redirect to dashboard
-  if (isLoggedIn && publicPages.includes(to.path)) {
+  // If user is authenticated and trying to access public/auth pages (except student quiz), redirect to dashboard
+  if (isLoggedIn && publicPages.includes(to.path) && !isStudentQuizPage) {
     /*  toast.info("You are already logged in. Redirecting to home."); */
     return next("/account/home");
   }
