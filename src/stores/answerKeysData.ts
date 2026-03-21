@@ -102,6 +102,30 @@ export const useAnswerKeysStore = defineStore('answerKeys', () => {
     };
 
     /**
+     * Fetch a specific answer key by ID
+     */
+    const fetchAnswerKeyById = async (id: string | number) => {
+        loading.value = true;
+        try {
+            const { data, error } = await supabase
+                .from('answer_keys')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error) throw error;
+
+            return { data, error: null };
+        } catch (error: any) {
+            console.error('Error fetching answer key:', error);
+            toast.error('Failed to fetch answer key');
+            return { data: null, error };
+        } finally {
+            loading.value = false;
+        }
+    };
+
+    /**
      * Create a new answer key record in the database
      */
     const createAnswerKey = async (answerKeyData: Omit<AnswerKey, 'id' | 'created_at' | 'updated_at' | 'qr_link'>) => {
@@ -294,6 +318,7 @@ export const useAnswerKeysStore = defineStore('answerKeys', () => {
         generateAnswerImageUrl,
         extractImagePathFromUrl,
         fetchAnswerKeys,
+        fetchAnswerKeyById,
         createAnswerKey,
         updateAnswerKey,
         deleteAnswerKey,
