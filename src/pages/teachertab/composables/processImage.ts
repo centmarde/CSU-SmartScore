@@ -1,23 +1,14 @@
 import { ref } from 'vue'
-import { createWorker, type Worker } from 'tesseract.js'
 import { createGroqAIService, type GroqAIService } from '@/lib/aiBase'
 import { useToast } from 'vue-toastification'
 
 interface ProcessedImageResult {
-  ocrText: string
   answerKeyData: any
-  confidence: number
   processingTime: number
 }
 
-interface OCRProgress {
-  status: string
-  progress: number
-  userJobId?: string
-}
-
 /**
- * Composable for processing images with OCR and AI refinement
+ * Composable for processing images with AI vision analysis
  */
 export function useImageProcessor() {
   const toast = useToast()
@@ -29,38 +20,21 @@ export function useImageProcessor() {
   const streamingContent = ref('')
 
   // Services
-  let tesseractWorker: Worker | null = null
   let groqService: GroqAIService | null = null
 
   /**
-   * Initialize OCR worker and AI service
+   * Initialize AI service
    */
   const initializeServices = async (): Promise<void> => {
     try {
-      if (!tesseractWorker) {
-        currentStatus.value = 'Initializing OCR engine...'
-        progress.value = 10
-
-        tesseractWorker = await createWorker('eng', 1, {
-          logger: (m: OCRProgress) => {
-            currentStatus.value = m.status
-            progress.value = Math.max(progress.value, m.progress * 100)
-          }
-        })
-
-        // Configure OCR for better text recognition
-        await tesseractWorker.setParameters({
-          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz().,;:!?-+=[]{}|\\/"\'`~@#$%^&*_<> \n\t',
-          preserve_interword_spaces: '1'
-        })
-      }
-
       if (!groqService) {
+        currentStatus.value = 'Initializing AI service...'
+        progress.value = 10
         groqService = createGroqAIService()
       }
     } catch (error) {
-      console.error('Error initializing services:', error)
-      toast.error('Failed to initialize image processing services')
+      console.error('Error initializing AI service:', error)
+      toast.error('Failed to initialize AI service')
       throw error
     }
   }
@@ -82,35 +56,10 @@ export function useImageProcessor() {
     })
   }
 
-  /**
-   * Perform OCR on the image
-   */
-  const performOCR = async (file: File): Promise<{ text: string; confidence: number }> => {
-    if (!tesseractWorker) {
-      throw new Error('OCR worker not initialized')
-    }
 
-    try {
-      currentStatus.value = 'Performing OCR on image...'
-      progress.value = 30
-
-      const { data } = await tesseractWorker.recognize(file)
-
-      progress.value = 60
-      currentStatus.value = 'OCR completed, processing text...'
-
-      return {
-        text: data.text,
-        confidence: data.confidence
-      }
-    } catch (error) {
-      console.error('OCR Error:', error)
-      throw new Error('Failed to perform OCR on image')
-    }
-  }
 
   /**
-   * Process image with OCR and AI refinement
+   * Process image with Groq AI vision model
    */
   const processImage = async (file: File, useStreaming = false): Promise<ProcessedImageResult> => {
     const startTime = Date.now()
@@ -123,42 +72,23 @@ export function useImageProcessor() {
       // Initialize services
       await initializeServices()
 
-      // Perform OCR
-      const ocrResult = await performOCR(file)
-
-      if (!ocrResult.text.trim()) {
-        throw new Error('No text was detected in the image')
-      }
-
       // Convert image to base64 for AI processing
-      currentStatus.value = 'Preparing image for AI processing...'
-      progress.value = 70
+      currentStatus.value = 'Converting image to base64...'
+      progress.value = 30
 
       const imageBase64 = await fileToBase64(file)
 
-      // Process with AI
-      currentStatus.value = 'Refining answer key with AI...'
-      progress.value = 80
+      // Process with Groq AI vision model
+      currentStatus.value = 'Processing image with AI...'
+      progress.value = 50
 
       let answerKeyData
       try {
-        // Try vision model first (with OCR text and image)
-        answerKeyData = await groqService!.processWithVision(ocrResult.text, imageBase64)
+        // Use vision model to directly process the image
+        answerKeyData = await groqService!.processImageOnly(imageBase64)
       } catch (visionError) {
-        console.warn('Vision model failed, using text-only fallback:', visionError)
-
-        if (useStreaming) {
-          // Use streaming text-only model with progress callback
-          answerKeyData = await groqService!.processTextOnlyStreaming(
-            ocrResult.text,
-            (chunk: string) => {
-              streamingContent.value += chunk
-            }
-          )
-        } else {
-          // Use regular text-only model
-          answerKeyData = await groqService!.processTextOnly(ocrResult.text)
-        }
+        console.error('Vision model failed:', visionError)
+        throw new Error('Failed to process image with AI vision model')
       }
 
       progress.value = 100
@@ -169,9 +99,7 @@ export function useImageProcessor() {
       toast.success(`Image processed successfully! Found ${answerKeyData.questions?.length || 0} questions`)
 
       return {
-        ocrText: ocrResult.text,
         answerKeyData,
-        confidence: ocrResult.confidence,
         processingTime
       }
 
@@ -208,34 +136,37 @@ export function useImageProcessor() {
   }
 
   /**
-   * Validate OCR text quality
+   * Validate image processing result
    */
-  const validateOCRText = (text: string, confidence: number): { isValid: boolean; issues: string[] } => {
+  const validateProcessingResult = (answerKeyData: any): { isValid: boolean; issues: string[] } => {
     const issues: string[] = []
     let isValid = true
 
-    // Check confidence level
-    if (confidence < 70) {
-      issues.push('Low OCR confidence. Image quality may be poor.')
+    // Check if we have answer key data
+    if (!answerKeyData) {
+      issues.push('No answer key data was extracted from the image.')
+      isValid = false
+      return { isValid, issues }
+    }
+
+    // Check if we have questions
+    if (!answerKeyData.questions || !Array.isArray(answerKeyData.questions)) {
+      issues.push('No questions were detected in the image.')
+      isValid = false
+    } else if (answerKeyData.questions.length === 0) {
+      issues.push('No questions were found in the image.')
       isValid = false
     }
 
-    // Check if text contains meaningful content
-    if (text.trim().length < 10) {
-      issues.push('Very little text detected in image.')
-      isValid = false
-    }
+    // Check question structure
+    if (answerKeyData.questions?.length > 0) {
+      const invalidQuestions = answerKeyData.questions.filter((q: any) =>
+        !q.question_number || !q.correct_answer
+      )
 
-    // Check for common OCR issues
-    const specialCharRatio = (text.match(/[^a-zA-Z0-9\s]/g) || []).length / text.length
-    if (specialCharRatio > 0.3) {
-      issues.push('High number of special characters detected. OCR may have issues.')
-    }
-
-    // Check for question patterns
-    const hasQuestionNumbers = /\d+[\.\)]\s*/.test(text)
-    if (!hasQuestionNumbers) {
-      issues.push('No question numbering pattern detected.')
+      if (invalidQuestions.length > 0) {
+        issues.push(`${invalidQuestions.length} questions are missing required information.`)
+      }
     }
 
     return { isValid, issues }
@@ -246,10 +177,8 @@ export function useImageProcessor() {
    */
   const cleanup = async (): Promise<void> => {
     try {
-      if (tesseractWorker) {
-        await tesseractWorker.terminate()
-        tesseractWorker = null
-      }
+      // Reset service reference
+      groqService = null
     } catch (error) {
       console.warn('Error during cleanup:', error)
     }
@@ -323,7 +252,7 @@ export function useImageProcessor() {
     // Methods
     processImage,
     processMultipleImages,
-    validateOCRText,
+    validateProcessingResult,
     preprocessImage,
     cleanup,
 
