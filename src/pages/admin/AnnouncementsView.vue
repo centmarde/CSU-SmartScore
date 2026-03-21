@@ -489,7 +489,7 @@ onMounted(async () => {
 })
 
 // Add infinite scroll functionality
-let infiniteScrollTimeout: NodeJS.Timeout | null = null
+let infiniteScrollTimeout: ReturnType<typeof setTimeout> | null = null
 
 const handleScroll = () => {
   if (infiniteScrollTimeout) clearTimeout(infiniteScrollTimeout)

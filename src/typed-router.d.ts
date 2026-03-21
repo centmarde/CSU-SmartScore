@@ -38,6 +38,7 @@ declare module 'vue-router/auto-routes' {
     '/hometab/HomeLogs': RouteRecordInfo<'/hometab/HomeLogs', '/hometab/HomeLogs', Record<never, never>, Record<never, never>>,
     '/HomeView': RouteRecordInfo<'/HomeView', '/HomeView', Record<never, never>, Record<never, never>>,
     '/NotFound': RouteRecordInfo<'/NotFound', '/NotFound', Record<never, never>, Record<never, never>>,
-    '/otherTab/Page1View': RouteRecordInfo<'/otherTab/Page1View', '/otherTab/Page1View', Record<never, never>, Record<never, never>>,
+    '/teachertab/components/TeacherQRWidget': RouteRecordInfo<'/teachertab/components/TeacherQRWidget', '/teachertab/components/TeacherQRWidget', Record<never, never>, Record<never, never>>,
+    '/teachertab/TeacherQRView': RouteRecordInfo<'/teachertab/TeacherQRView', '/teachertab/TeacherQRView', Record<never, never>, Record<never, never>>,
   }
 }
