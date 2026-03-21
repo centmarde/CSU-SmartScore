@@ -5,6 +5,7 @@ import CreateAnswerKeysDialog from '../dialogs/CreateAnswerKeysDialog.vue'
 import EditAnswerKeysDialog from '../dialogs/EditAnswerKeysDialog.vue'
 import DeleteAnswerKeyDialog from '../dialogs/DeleteAnswerKeyDialog.vue'
 import ViewQrCodeDialog from '../dialogs/ViewQrCodeDialog.vue'
+import ViewAnswerDialog from '../dialogs/ViewAnswerDialog.vue'
 
 const answerKeysStore = useAnswerKeysStore()
 
@@ -13,10 +14,10 @@ const showCreateDialog = ref(false)
 const showEditDialog = ref(false)
 const showDeleteDialog = ref(false)
 const showQrCodeDialog = ref(false)
+const showViewAnswerDialog = ref(false)
 
 // Table headers
 const headers = [
-  { title: 'ID', key: 'id', sortable: true },
   { title: 'Title', key: 'title', sortable: true },
   { title: 'Description', key: 'description', sortable: false },
   { title: 'Status', key: 'is_active', sortable: true },
@@ -50,6 +51,11 @@ const handleDeleteAnswerKey = (answerKey: AnswerKey) => {
 const handleViewQRCode = (answerKey: AnswerKey) => {
   answerKeysStore.setSelectedAnswerKey(answerKey)
   showQrCodeDialog.value = true
+}
+
+const handleViewAnswer = (answerKey: AnswerKey) => {
+  answerKeysStore.setSelectedAnswerKey(answerKey)
+  showViewAnswerDialog.value = true
 }
 
 const toggleAnswerKeyStatus = async (answerKey: AnswerKey) => {
@@ -139,12 +145,6 @@ onMounted(() => {
           :items-per-page="itemsPerPage"
           class="elevation-1"
         >
-          <template v-slot:item.id="{ item }">
-            <v-chip size="small" color="primary" variant="outlined">
-              #{{ item.id }}
-            </v-chip>
-          </template>
-
           <template v-slot:item.title="{ item }">
             <div class="font-weight-medium">{{ item.title }}</div>
           </template>
@@ -173,6 +173,19 @@ onMounted(() => {
 
           <template v-slot:item.actions="{ item }">
             <div class="d-flex justify-center align-center gap-1">
+              <v-tooltip text="View & Edit Answers">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    icon="mdi-eye"
+                    size="small"
+                    variant="text"
+                    color="info"
+                    @click="handleViewAnswer(item)"
+                  />
+                </template>
+              </v-tooltip>
+
               <v-tooltip text="View QR Code">
                 <template v-slot:activator="{ props }">
                   <v-btn
@@ -257,6 +270,10 @@ onMounted(() => {
 
     <ViewQrCodeDialog
       v-model="showQrCodeDialog"
+    />
+
+    <ViewAnswerDialog
+      v-model="showViewAnswerDialog"
     />
   </v-container>
 </template>

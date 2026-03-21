@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useAnswerKeysStore } from '@/stores/answerKeysData'
+import { useImageProcessor } from '@/pages/teachertab/composables/processImage'
+import { useToast } from 'vue-toastification'
+import ImageSourceSelection from '../dialogs/answerkey/ImageSourceSelection.vue'
+import ImageCaptureUpload from '../dialogs/answerkey/ImageCaptureUpload.vue'
+import AnswerKeyForm from '../dialogs/answerkey/AnswerKeyForm.vue'
 
 interface Props {
   modelValue: boolean
@@ -14,15 +19,39 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const answerKeysStore = useAnswerKeysStore()
+const toast = useToast()
+
+// Initialize image processor
+const {
+  processImage,
+  isProcessing: isOCRProcessing,
+  progress: ocrProgress,
+  currentStatus: ocrStatus,
+  streamingContent: ocrStreamingContent,
+  cleanup: cleanupImageProcessor
+} = useImageProcessor()
+
+// Additional status for submission process
+const submissionStatus = ref('')// Step management
+const currentStep = ref(1)
+const totalSteps = 3
+
+// Image source selection
+const imageSource = ref<'upload' | 'camera' | null>(null)
 
 // Form data
 const formData = ref({
   title: '',
   description: '',
   is_active: true,
-  answer_keys: null as any,
-  answer_images: null as string | null
+  answer_images: null as string | null,
+  answer_keys: null as any // JSONB field for processed answer key data
 })
+
+// OCR processing state
+const ocrResult = ref<any>(null)
+const ocrText = ref('')
+const processingStep = ref<'uploading' | 'ocr' | 'ai' | 'saving' | 'complete' | null>(null)
 
 // Form validation
 const titleRules = [
@@ -32,8 +61,10 @@ const titleRules = [
 
 // File handling
 const imageFile = ref<File | null>(null)
-const answerKeyFile = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
+
+// Camera related
+const showCamera = ref(false)
 
 // Computed
 const isOpen = computed({
@@ -41,40 +72,90 @@ const isOpen = computed({
   set: (value: boolean) => emit('update:modelValue', value)
 })
 
-const loading = computed(() => answerKeysStore.loading)
+const loading = computed(() => answerKeysStore.loading || isOCRProcessing.value)
 
 // Functions
-const handleImageUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-
-  if (file) {
-    imageFile.value = file
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imagePreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
+const nextStep = () => {
+  if (currentStep.value < totalSteps) {
+    currentStep.value++
   }
 }
 
-const handleAnswerKeyUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
+const prevStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value--
+  }
+}
 
-  if (file) {
-    answerKeyFile.value = file
-    // Parse JSON file
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string
-        formData.value.answer_keys = JSON.parse(content)
-      } catch (error) {
-        console.error('Error parsing answer key file:', error)
-      }
+const selectImageSource = (source: 'upload' | 'camera') => {
+  imageSource.value = source
+  if (source === 'camera') {
+    showCamera.value = true
+  }
+  nextStep()
+}
+
+const retakePhoto = () => {
+  imageFile.value = null
+  imagePreview.value = null
+  currentStep.value = 1
+  imageSource.value = null
+  showCamera.value = false
+}
+
+const handleImageUploaded = (file: File) => {
+  imageFile.value = file
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    imagePreview.value = e.target?.result as string
+    nextStep()
+  }
+  reader.readAsDataURL(file)
+}
+
+const handleImageCaptured = (data: { file: File, preview: string }) => {
+  imageFile.value = data.file
+  imagePreview.value = data.preview
+  showCamera.value = false
+  nextStep()
+}// Process image with OCR and AI refinement
+const processImageWithOCR = async (file: File) => {
+  try {
+    processingStep.value = 'ocr'
+
+    // Process the image with streaming enabled for better UX
+    const result = await processImage(file, true)
+
+    processingStep.value = 'ai'
+
+    // Store the results
+    ocrResult.value = result
+    ocrText.value = result.ocrText
+    formData.value.answer_keys = result.answerKeyData
+
+    // Auto-populate title if we found questions
+    if (result.answerKeyData?.metadata?.total_questions) {
+      const questionCount = result.answerKeyData.metadata.total_questions
+      const subject = result.answerKeyData.metadata.subject !== 'Unknown'
+        ? ` - ${result.answerKeyData.metadata.subject}`
+        : ''
+      formData.value.title = `Answer Key${subject} (${questionCount} Questions)`
     }
-    reader.readAsText(file)
+
+    // Auto-populate description with metadata
+    if (result.answerKeyData?.metadata?.instructions) {
+      formData.value.description = result.answerKeyData.metadata.instructions
+    }
+
+    processingStep.value = 'complete'
+
+  } catch (error) {
+    console.error('Error processing image:', error)
+    processingStep.value = null
+    // Reset OCR data on error
+    ocrResult.value = null
+    ocrText.value = ''
+    formData.value.answer_keys = null
   }
 }
 
@@ -85,24 +166,33 @@ const removeImage = () => {
 }
 
 const resetForm = () => {
+  currentStep.value = 1
+  imageSource.value = null
   formData.value = {
     title: '',
     description: '',
     is_active: true,
-    answer_keys: null,
-    answer_images: null
+    answer_images: null,
+    answer_keys: null
   }
   imageFile.value = null
-  answerKeyFile.value = null
   imagePreview.value = null
+  showCamera.value = false
+  ocrResult.value = null
+  ocrText.value = ''
+  processingStep.value = null
+  submissionStatus.value = ''
 }
 
 const handleSubmit = async () => {
   try {
     let imageUrl = null
 
-    // Upload image if provided
+    // First, upload the image if provided
     if (imageFile.value) {
+      processingStep.value = 'uploading'
+      submissionStatus.value = 'Uploading image...'
+
       const imagePath = `answer_key_${Date.now()}_${imageFile.value.name}`
       const uploadResult = await answerKeysStore.uploadAnswerImage(imageFile.value, imagePath)
 
@@ -111,23 +201,73 @@ const handleSubmit = async () => {
       }
     }
 
-    // Create answer key
+    // Process image with OCR and AI if we have an image
+    let processedAnswerKeys = null
+    if (imageFile.value) {
+      submissionStatus.value = 'Processing image with OCR and AI...'
+      processingStep.value = 'ocr'
+
+      try {
+        // Process the image with streaming enabled for better UX
+        const result = await processImage(imageFile.value, true)
+
+        processingStep.value = 'ai'
+
+        // Store the OCR results
+        ocrResult.value = result
+        ocrText.value = result.ocrText
+        processedAnswerKeys = result.answerKeyData
+
+        // Auto-populate title if we found questions and user hasn't set one
+        if (!formData.value.title && result.answerKeyData?.metadata?.total_questions) {
+          const questionCount = result.answerKeyData.metadata.total_questions
+          const subject = result.answerKeyData.metadata.subject !== 'Unknown'
+            ? ` - ${result.answerKeyData.metadata.subject}`
+            : ''
+          formData.value.title = `Answer Key${subject} (${questionCount} Questions)`
+        }
+
+        // Auto-populate description if user hasn't set one
+        if (!formData.value.description && result.answerKeyData?.metadata?.instructions) {
+          formData.value.description = result.answerKeyData.metadata.instructions
+        }
+
+      } catch (ocrError) {
+        console.warn('OCR processing failed, continuing without OCR data:', ocrError)
+        // Continue with manual data entry
+      }
+    }
+
+    // Save to database
+    processingStep.value = 'saving'
+    submissionStatus.value = 'Saving answer key...'
+
     const answerKeyData = {
       title: formData.value.title,
       description: formData.value.description,
       is_active: formData.value.is_active,
-      answer_keys: formData.value.answer_keys,
-      answer_images: imageUrl || undefined
+      answer_images: imageUrl || undefined,
+      answer_keys: processedAnswerKeys // Include processed OCR/AI data
     }
 
     const result = await answerKeysStore.createAnswerKey(answerKeyData)
 
     if (result.error === null) {
+      processingStep.value = 'complete'
+      submissionStatus.value = 'Answer key created successfully!'
+
+      // Show success message with OCR results summary
+      if (processedAnswerKeys?.questions?.length) {
+        toast.success(`Answer key created with ${processedAnswerKeys.questions.length} questions detected!`)
+      }
+
       resetForm()
       isOpen.value = false
     }
   } catch (error) {
     console.error('Error creating answer key:', error)
+    processingStep.value = null
+    submissionStatus.value = 'Error occurred during processing'
   }
 }
 
@@ -135,6 +275,11 @@ const handleClose = () => {
   resetForm()
   isOpen.value = false
 }
+
+// Cleanup on component unmount
+onUnmounted(() => {
+  cleanupImageProcessor()
+})
 </script>
 
 <template>
@@ -148,121 +293,131 @@ const handleClose = () => {
       <v-card-title class="text-h5 font-weight-bold">
         <v-icon class="mr-2" color="primary">mdi-plus</v-icon>
         Create Answer Key
+        <v-spacer />
+        <v-chip size="small" color="primary" variant="outlined">
+          Step {{ currentStep }} of {{ totalSteps }}
+        </v-chip>
       </v-card-title>
 
       <v-card-text>
-        <v-form @submit.prevent="handleSubmit">
-          <v-row>
-            <!-- Title -->
-            <v-col cols="12">
-              <v-text-field
-                v-model="formData.title"
-                label="Title *"
-                :rules="titleRules"
-                variant="outlined"
-                required
-              />
-            </v-col>
-
-            <!-- Description -->
-            <v-col cols="12">
-              <v-textarea
-                v-model="formData.description"
-                label="Description"
-                variant="outlined"
-                rows="3"
-                counter="500"
-              />
-            </v-col>
-
-            <!-- Status -->
-            <v-col cols="12">
-              <v-switch
-                v-model="formData.is_active"
-                label="Active"
+        <!-- Processing Overlay -->
+        <v-overlay
+          v-model="loading"
+          contained
+          persistent
+          class="d-flex align-center justify-center"
+        >
+          <v-card class="pa-6" min-width="400">
+            <v-card-text class="text-center">
+              <v-progress-circular
+                :model-value="ocrProgress || 50"
+                :size="80"
+                :width="6"
                 color="primary"
-                inset
-              />
-            </v-col>
-
-            <!-- Answer Key File Upload -->
-            <v-col cols="12">
-              <v-file-input
-                label="Answer Key JSON File"
-                variant="outlined"
-                accept=".json"
-                prepend-icon="mdi-file-document"
-                @change="handleAnswerKeyUpload"
+                class="mb-4"
+                :indeterminate="!ocrProgress"
               >
-                <template v-slot:selection="{ fileNames }">
-                  <v-chip
-                    v-for="name in fileNames"
-                    :key="name"
-                    size="small"
-                    label
-                    color="primary"
-                    class="me-2"
-                  >
-                    {{ name }}
-                  </v-chip>
-                </template>
-              </v-file-input>
-            </v-col>
+                <span v-if="ocrProgress">{{ Math.round(ocrProgress) }}%</span>
+              </v-progress-circular>
 
-            <!-- Image Upload -->
-            <v-col cols="12">
-              <v-file-input
-                label="Answer Images"
-                variant="outlined"
-                accept="image/*"
-                prepend-icon="mdi-camera"
-                @change="handleImageUpload"
-              />
+              <h3 class="text-h6 mb-2">Processing Answer Key</h3>
+              <p class="text-body-2 text-medium-emphasis">{{ submissionStatus || ocrStatus }}</p>
 
-              <!-- Image Preview -->
-              <div v-if="imagePreview" class="mt-2">
-                <v-card variant="outlined" class="pa-2">
-                  <div class="d-flex align-center">
-                    <v-img
-                      :src="imagePreview"
-                      max-height="100"
-                      max-width="100"
-                      class="me-3"
-                    />
-                    <div class="flex-grow-1">
-                      <div class="text-body-2">Image Preview</div>
-                      <div class="text-caption text-medium-emphasis">
-                        {{ imageFile?.name }}
-                      </div>
-                    </div>
-                    <v-btn
-                      icon="mdi-close"
-                      size="small"
-                      variant="text"
-                      @click="removeImage"
-                    />
+              <div class="mt-4">
+                <v-chip
+                  v-if="processingStep === 'uploading'"
+                  size="small"
+                  color="orange"
+                  prepend-icon="mdi-upload"
+                >
+                  Uploading Image
+                </v-chip>
+                <v-chip
+                  v-else-if="processingStep === 'ocr'"
+                  size="small"
+                  color="info"
+                  prepend-icon="mdi-eye"
+                >
+                  Extracting Text (OCR)
+                </v-chip>
+                <v-chip
+                  v-else-if="processingStep === 'ai'"
+                  size="small"
+                  color="success"
+                  prepend-icon="mdi-brain"
+                >
+                  AI Analysis & Refinement
+                </v-chip>
+                <v-chip
+                  v-else-if="processingStep === 'saving'"
+                  size="small"
+                  color="primary"
+                  prepend-icon="mdi-content-save"
+                >
+                  Saving Answer Key
+                </v-chip>
+              </div>
+
+              <!-- AI Streaming Content Preview -->
+              <div v-if="ocrStreamingContent && processingStep === 'ai'" class="mt-4">
+                <v-card variant="outlined" class="pa-3">
+                  <div class="text-caption text-medium-emphasis mb-2">
+                    <v-icon size="small" class="me-1">mdi-lightning-bolt</v-icon>
+                    Live AI Processing...
+                  </div>
+                  <div class="text-body-2" style="max-height: 200px; overflow-y: auto;">
+                    <pre class="text-wrap">{{ ocrStreamingContent }}</pre>
                   </div>
                 </v-card>
               </div>
-            </v-col>
+            </v-card-text>
+          </v-card>
+        </v-overlay>
 
-            <!-- Answer Keys Preview -->
-            <v-col v-if="formData.answer_keys" cols="12">
-              <v-card variant="outlined">
-                <v-card-title class="text-subtitle-1">
-                  Answer Keys Preview
-                </v-card-title>
-                <v-card-text>
-                  <pre class="text-caption">{{ JSON.stringify(formData.answer_keys, null, 2) }}</pre>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-form>
+        <!-- Step 1: Choose Image Source -->
+        <ImageSourceSelection
+          v-if="currentStep === 1"
+          :selected-source="imageSource"
+          @select="selectImageSource"
+        />
+
+        <!-- Step 2: Image Capture/Upload -->
+        <ImageCaptureUpload
+          v-if="currentStep === 2"
+          :image-source="imageSource"
+          :image-preview="imagePreview"
+          :show-camera="showCamera"
+          @image-uploaded="handleImageUploaded"
+          @image-captured="handleImageCaptured"
+          @retake="retakePhoto"
+          @continue="nextStep"
+          @camera-ready="showCamera = true"
+        />
+
+        <!-- Step 3: Form Details -->
+        <AnswerKeyForm
+          v-if="currentStep === 3"
+          v-model:form-data="formData"
+          :image-preview="imagePreview"
+          :image-file-name="imageFile?.name || null"
+          :ocr-result="ocrResult"
+          @edit-image="retakePhoto"
+          @submit="handleSubmit"
+        />
       </v-card-text>
 
       <v-card-actions>
+        <v-btn
+          v-if="currentStep > 1"
+          variant="outlined"
+          @click="prevStep"
+          prepend-icon="mdi-arrow-left"
+        >
+          Back
+        </v-btn>
+
         <v-spacer />
+
         <v-btn
           variant="outlined"
           @click="handleClose"
@@ -270,13 +425,15 @@ const handleClose = () => {
         >
           Cancel
         </v-btn>
+
         <v-btn
+          v-if="currentStep === 3"
           color="primary"
           @click="handleSubmit"
           :loading="loading"
           :disabled="!formData.title"
         >
-          Create Answer Key
+          {{ imageFile ? 'Process Image & Create Answer Key' : 'Create Answer Key' }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -284,11 +441,5 @@ const handleClose = () => {
 </template>
 
 <style scoped>
-pre {
-  background-color: rgb(var(--v-theme-surface-variant));
-  padding: 8px;
-  border-radius: 4px;
-  overflow-x: auto;
-  max-height: 200px;
-}
+/* Minimal styles needed for the main dialog */
 </style>
