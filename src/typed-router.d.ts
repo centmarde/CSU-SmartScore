@@ -38,7 +38,12 @@ declare module 'vue-router/auto-routes' {
     '/hometab/HomeLogs': RouteRecordInfo<'/hometab/HomeLogs', '/hometab/HomeLogs', Record<never, never>, Record<never, never>>,
     '/HomeView': RouteRecordInfo<'/HomeView', '/HomeView', Record<never, never>, Record<never, never>>,
     '/NotFound': RouteRecordInfo<'/NotFound', '/NotFound', Record<never, never>, Record<never, never>>,
-    '/teachertab/components/TeacherQRWidget': RouteRecordInfo<'/teachertab/components/TeacherQRWidget', '/teachertab/components/TeacherQRWidget', Record<never, never>, Record<never, never>>,
-    '/teachertab/TeacherQRView': RouteRecordInfo<'/teachertab/TeacherQRView', '/teachertab/TeacherQRView', Record<never, never>, Record<never, never>>,
+    '/teachertab/components/TeacherAnswerKeyWidget': RouteRecordInfo<'/teachertab/components/TeacherAnswerKeyWidget', '/teachertab/components/TeacherAnswerKeyWidget', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/CreateAnswerKeysDialog': RouteRecordInfo<'/teachertab/dialogs/CreateAnswerKeysDialog', '/teachertab/dialogs/CreateAnswerKeysDialog', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/DeleteAnswerKeyDialog': RouteRecordInfo<'/teachertab/dialogs/DeleteAnswerKeyDialog', '/teachertab/dialogs/DeleteAnswerKeyDialog', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/DeleteConfirmationDialog': RouteRecordInfo<'/teachertab/dialogs/DeleteConfirmationDialog', '/teachertab/dialogs/DeleteConfirmationDialog', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/EditAnswerKeysDialog': RouteRecordInfo<'/teachertab/dialogs/EditAnswerKeysDialog', '/teachertab/dialogs/EditAnswerKeysDialog', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/ViewQrCodeDialog': RouteRecordInfo<'/teachertab/dialogs/ViewQrCodeDialog', '/teachertab/dialogs/ViewQrCodeDialog', Record<never, never>, Record<never, never>>,
+    '/teachertab/TeacherAnswerKeyView': RouteRecordInfo<'/teachertab/TeacherAnswerKeyView', '/teachertab/TeacherAnswerKeyView', Record<never, never>, Record<never, never>>,
   }
 }

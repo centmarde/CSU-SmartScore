@@ -10,6 +10,7 @@ import AdminUserRolesView from "@/pages/admin/AdminUserRolesView.vue";
 import UserManagementView from "@/pages/admin/UserManagementView.vue";
 import AnnouncementsView from "@/pages/admin/AnnouncementsView.vue";
 import SettingsView from "@/pages/account/SettingsView.vue";
+import TeacherAnswerKeyView from "@/pages/teachertab/TeacherAnswerKeyView.vue";
 
 /**
  * Route definitions for the application
@@ -47,6 +48,11 @@ const routes = setupLayouts([
   {
     path: "/admin/announcements",
     component: AnnouncementsView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/teachertab/teacher-answer-key",
+    component: TeacherAnswerKeyView,
     meta: { requiresAuth: true }
   },
   {
