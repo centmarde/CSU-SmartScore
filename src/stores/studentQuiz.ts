@@ -4,6 +4,28 @@ import { useAnswerKeysStore } from './answerKeysData';
 import type { AnswerKey } from './answerKeysData';
 
 /**
+ * Interface for student answer
+ */
+interface StudentAnswer {
+    questionNumber: number;
+    selectedAnswer: string;
+    confidence: number;
+    alternatives?: string[];
+    isManuallyEdited?: boolean;
+}
+
+/**
+ * Interface for answer comparison result
+ */
+interface AnswerComparison {
+    questionNumber: number;
+    studentAnswer: string;
+    correctAnswer: string;
+    isCorrect: boolean;
+    points: number;
+}
+
+/**
  * Pinia Store for student quiz functionality
  * This store manages the student's interaction with quizzes
  */
@@ -97,6 +119,97 @@ export const useStudentQuizStore = defineStore('studentQuiz', () => {
     };
 
     /**
+     * Compare student answers with the correct answer key
+     */
+    const compareAnswers = (studentAnswers: StudentAnswer[], answerKeyId: number) => {
+        if (!currentQuiz.value || currentQuiz.value.id !== answerKeyId) {
+            throw new Error('Quiz not loaded or ID mismatch');
+        }
+
+        const answerKey = currentQuiz.value.answer_keys;
+        if (!answerKey || !answerKey.questions) {
+            throw new Error('Answer key questions not found');
+        }
+
+        const comparisons: AnswerComparison[] = [];
+        let totalScore = 0;
+        const totalQuestions = answerKey.questions.length;
+
+        // Create a map of answer key questions for easy lookup
+        const answerKeyMap = new Map();
+        answerKey.questions.forEach((question: any) => {
+            answerKeyMap.set(question.question_number || question.questionNumber, question.correct_answer);
+        });
+
+        // Compare each student answer
+        studentAnswers.forEach((studentAnswer) => {
+            const correctAnswer = answerKeyMap.get(studentAnswer.questionNumber);
+
+            if (correctAnswer !== undefined) {
+                const isCorrect = studentAnswer.selectedAnswer.toUpperCase() === correctAnswer.toUpperCase();
+                const points = isCorrect ? 1 : 0;
+
+                comparisons.push({
+                    questionNumber: studentAnswer.questionNumber,
+                    studentAnswer: studentAnswer.selectedAnswer,
+                    correctAnswer: correctAnswer,
+                    isCorrect: isCorrect,
+                    points: points
+                });
+
+                totalScore += points;
+            }
+        });
+
+        // Calculate percentage score
+        const percentageScore = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 100) : 0;
+
+        return {
+            comparisons,
+            totalScore,
+            totalQuestions,
+            percentageScore,
+            correctAnswers: totalScore,
+            incorrectAnswers: totalQuestions - totalScore
+        };
+    };
+
+    /**
+     * Grade student submission
+     */
+    const gradeStudentSubmission = (studentAnswers: StudentAnswer[], answerKeyId: number) => {
+        try {
+            const result = compareAnswers(studentAnswers, answerKeyId);
+
+            // Generate remarks based on score
+            let remarks = '';
+            if (result.percentageScore >= 90) {
+                remarks = 'Excellent performance!';
+            } else if (result.percentageScore >= 80) {
+                remarks = 'Very good work!';
+            } else if (result.percentageScore >= 70) {
+                remarks = 'Good job!';
+            } else if (result.percentageScore >= 60) {
+                remarks = 'Satisfactory performance.';
+            } else {
+                remarks = 'Needs improvement.';
+            }
+
+            return {
+                score: result.percentageScore,
+                remarks,
+                totalCorrect: result.correctAnswers,
+                totalIncorrect: result.incorrectAnswers,
+                totalQuestions: result.totalQuestions,
+                comparisons: result.comparisons
+            };
+        } catch (error) {
+            console.error('Error grading submission:', error);
+            throw error;
+        }
+    };
+
+    /**
      * Get quiz info for display
      */
     const getQuizDisplayInfo = () => {
@@ -130,5 +243,7 @@ export const useStudentQuizStore = defineStore('studentQuiz', () => {
         addScannedAnswers,
         submitAnswers,
         getQuizDisplayInfo,
+        compareAnswers,
+        gradeStudentSubmission,
     };
 });

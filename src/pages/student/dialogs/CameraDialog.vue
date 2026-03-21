@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
-import { useToast } from 'vue-toastification';
 
 // Props
 interface Props {
@@ -19,7 +18,7 @@ const emit = defineEmits<{
   'submit': [image: Blob];
 }>();
 
-const toast = useToast();
+
 
 // State
 const previewUrl = ref<string | null>(null);
@@ -46,10 +45,9 @@ const startCamera = async () => {
       videoRef.value.srcObject = stream.value;
       await videoRef.value.play();
     }
-    toast.success('Camera started');
+    console.log('📹 Camera started successfully');
   } catch (error) {
     console.error('Error accessing camera:', error);
-    toast.error('Failed to access camera. Please check permissions.');
     isCapturing.value = false;
   }
 };
@@ -99,7 +97,7 @@ const capturePhoto = () => {
 
         // Stop camera after capture
         stopCamera();
-        toast.success('Photo captured!');
+        console.log('📸 Photo captured successfully');
       }
     }, 'image/jpeg', 0.95);
   }
@@ -123,6 +121,7 @@ const retakePhoto = () => {
 const handleSubmit = () => {
   if (!capturedImage.value) return;
 
+  console.log('📤 Submitting captured image for processing...');
   emit('submit', capturedImage.value);
   handleClose();
 };

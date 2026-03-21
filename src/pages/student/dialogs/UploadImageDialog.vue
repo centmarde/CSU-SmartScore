@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
-import { useToast } from 'vue-toastification';
 
 // Props
 interface Props {
@@ -19,7 +18,7 @@ const emit = defineEmits<{
   'submit': [image: File];
 }>();
 
-const toast = useToast();
+
 
 // State
 const selectedFile = ref<File | null>(null);
@@ -33,14 +32,14 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const processFile = (file: File) => {
   // Validate file type
   if (!file.type.startsWith('image/')) {
-    toast.error('Please select an image file');
+    console.error('Please select an image file');
     return false;
   }
 
   // Validate file size (max 10MB)
   const maxSize = 10 * 1024 * 1024; // 10MB
   if (file.size > maxSize) {
-    toast.error('File size must be less than 10MB');
+    console.error('File size must be less than 10MB');
     return false;
   }
 
@@ -51,7 +50,7 @@ const processFile = (file: File) => {
     URL.revokeObjectURL(previewUrl.value);
   }
   previewUrl.value = URL.createObjectURL(file);
-  toast.success('Image selected');
+  console.log('🖼️ Image selected successfully');
   return true;
 };
 
@@ -118,6 +117,7 @@ const removeFile = () => {
 const handleSubmit = () => {
   if (!selectedFile.value) return;
 
+  console.log('📤 Submitting uploaded image for processing...');
   emit('submit', selectedFile.value);
   handleClose();
 };

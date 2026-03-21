@@ -1,19 +1,34 @@
 <script setup lang="ts">
-import { onMounted, computed, ref } from 'vue';
+import { onMounted, onUnmounted, computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import { useStudentQuizStore } from '@/stores/studentQuiz';
+import { useAnswerProcessor } from './composables/processAnswer';
+import { useStudentsStore } from '@/stores/studentsData';
+import { uploadImageToStorage } from '@/utils/imageUpload';
 import OuterLayoutWrapper from '@/layouts/OuterLayoutWrapper.vue';
 import UploadImageDialog from './dialogs/UploadImageDialog.vue';
 import CameraDialog from './dialogs/CameraDialog.vue';
+import EditAnswersDialog from './dialogs/EditAnswersDialog.vue';
+import ScoreResultDialog from './dialogs/ScoreResultDialog.vue';
+import SearchResultDialog from './dialogs/SearchResultDialog.vue';
 
 const route = useRoute();
 const toast = useToast();
 const studentQuizStore = useStudentQuizStore();
+const studentsStore = useStudentsStore();
+const answerProcessor = useAnswerProcessor();
 
 // State
 const showUploadDialog = ref(false);
 const showCameraDialog = ref(false);
+const showEditAnswersDialog = ref(false);
+const showScoreResultDialog = ref(false);
+const showSearchResultDialog = ref(false);
+const processingResults = ref<any>(null);
+const submittedImage = ref<File | Blob | null>(null);
+const scoreResults = ref<any>(null);
+const submissionData = ref<any>(null);
 
 // Computed properties
 const quizId = computed(() => {
@@ -33,7 +48,7 @@ const loading = computed(() => !isQuizLoaded.value && quizId.value !== '');
  */
 const fetchQuizInfo = async () => {
   if (!quizId.value) {
-    toast.error('Invalid quiz ID');
+    console.error('Invalid quiz ID');
     return;
   }
 
@@ -42,16 +57,14 @@ const fetchQuizInfo = async () => {
 
     if (error) {
       console.error('Error fetching quiz:', error);
-      toast.error('Failed to load quiz information');
       return;
     }
 
     if (data && !data.is_active) {
-      toast.warning('This quiz is currently inactive');
+      console.warn('This quiz is currently inactive');
     }
   } catch (error) {
     console.error('Error:', error);
-    toast.error('An unexpected error occurred');
   }
 };
 
@@ -70,31 +83,123 @@ const openUploadDialog = () => {
 };
 
 /**
+ * Open search result dialog
+ */
+const openSearchDialog = () => {
+  showSearchResultDialog.value = true;
+};
+
+/**
  * Handle image submission from dialog
  */
 const handleImageSubmit = async (image: File | Blob) => {
   try {
-    console.log('Submitting image for quiz:', quizId.value);
-    console.log('Image:', image);
+    console.log('📷 Processing image for quiz:', quizId.value);
+    submittedImage.value = image;
 
-    // TODO: Implement actual submission logic
-    // For now, just show success message
-    toast.success('Answer submitted successfully!');
+    // Close the current dialogs
+    showUploadDialog.value = false;
+    showCameraDialog.value = false;
 
-    // Here you would typically:
-    // 1. Upload the image to your backend
-    // 2. Process the answer sheet
-    // 3. Save the results
+    console.log('🔄 Processing answer sheet...');
+
+    const answerKeyData = studentQuizStore.currentQuiz;
+    const result = await answerProcessor.processAnswerSheet(
+      image,
+      answerKeyData,
+      false // Set to true if you want streaming
+    );
+
+    processingResults.value = result;
+
+    // Open the edit answers dialog
+    showEditAnswersDialog.value = true;
 
   } catch (error) {
-    console.error('Error submitting answer:', error);
-    toast.error('Failed to submit answer. Please try again.');
+    console.error('Error processing answer sheet:', error);
+    toast.error('Failed to process answer sheet. Please try again.');
+  }
+};
+
+/**
+ * Handle final submission of edited answers
+ */
+const handleAnswersSubmit = async (finalAnswers: any) => {
+  try {
+    if (!quizId.value || !submittedImage.value) {
+      console.error('Missing required data for submission');
+      return;
+    }
+
+    console.log('📤 Submitting answers...');
+
+    // Upload image to storage first
+    let imageUrl = null;
+    try {
+      imageUrl = await uploadImageToStorage(submittedImage.value);
+      console.log('✅ Image uploaded successfully');
+    } catch (uploadError) {
+      console.warn('Image upload failed:', uploadError);
+    }
+
+    // Grade the student answers by comparing with answer key
+    console.log('🧮 Grading student submission...');
+    const gradingResult = studentQuizStore.gradeStudentSubmission(
+      finalAnswers.answers,
+      parseInt(quizId.value)
+    );
+
+    console.log('📊 Grading Result:', gradingResult);
+
+    // Prepare student data
+    const studentData = {
+      fullname: finalAnswers.studentName,
+      student_id: finalAnswers.studentId,
+      answer_key_id: parseInt(quizId.value),
+      answers: finalAnswers.answers,
+      image_url: imageUrl,
+      score: gradingResult.score,
+      remarks: gradingResult.remarks
+    };
+
+    console.log('💾 Saving student data:', studentData);
+
+    // Save to database
+    const { data, error } = await studentsStore.createStudent(studentData);
+
+    if (error) {
+      throw new Error(error);
+    }
+
+    console.log('✅ Student data saved successfully');
+
+    // Store results and show score dialog
+    scoreResults.value = gradingResult;
+    submissionData.value = finalAnswers;
+
+    // Clear processing state
+    processingResults.value = null;
+    submittedImage.value = null;
+    showEditAnswersDialog.value = false;
+
+    // Show score results
+    showScoreResultDialog.value = true;
+
+  } catch (error) {
+    console.error('Error submitting answers:', error);
+    // Keep one toast for critical errors
+    toast.error('Failed to submit answers. Please try again.');
   }
 };
 
 // Lifecycle
 onMounted(() => {
   fetchQuizInfo();
+});
+
+onUnmounted(() => {
+  // Cleanup answer processor resources
+  answerProcessor.cleanup();
 });
 </script>
 
@@ -132,7 +237,7 @@ onMounted(() => {
 
                 <v-row class="mb-4" justify="center">
                   <!-- Camera Button -->
-                  <v-col cols="12" sm="6">
+                  <v-col cols="12" sm="4">
                     <v-btn
                       size="large"
                       color="primary"
@@ -148,7 +253,7 @@ onMounted(() => {
                   </v-col>
 
                   <!-- Upload Image Button -->
-                  <v-col cols="12" sm="6">
+                  <v-col cols="12" sm="4">
                     <v-btn
                       size="large"
                       color="primary"
@@ -160,6 +265,21 @@ onMounted(() => {
                     >
                       <v-icon left>mdi-upload</v-icon>
                       Upload Image
+                    </v-btn>
+                  </v-col>
+
+                  <!-- View Record Button -->
+                  <v-col cols="12" sm="4">
+                    <v-btn
+                      size="large"
+                      color="info"
+                      variant="tonal"
+                      @click="openSearchDialog"
+                      block
+                      height="60"
+                    >
+                      <v-icon left>mdi-account-search</v-icon>
+                      View Record
                     </v-btn>
                   </v-col>
                 </v-row>
@@ -205,6 +325,33 @@ onMounted(() => {
           </div>
         </v-overlay>
 
+        <!-- Processing Overlay -->
+        <v-overlay
+          :model-value="answerProcessor.isProcessing.value"
+          class="align-center justify-center"
+          persistent
+        >
+          <v-card class="pa-6 text-center" min-width="300">
+            <v-progress-circular
+              :model-value="answerProcessor.progress.value"
+              size="80"
+              width="8"
+              color="primary"
+            />
+            <div class="mt-4">
+              <p class="text-h6 mb-2">Processing Answer Sheet</p>
+              <p class="text-body-2 text-medium-emphasis">{{ answerProcessor.currentStatus.value }}</p>
+              <v-progress-linear
+                :model-value="answerProcessor.progress.value"
+                color="primary"
+                height="4"
+                rounded
+                class="mt-3"
+              />
+            </div>
+          </v-card>
+        </v-overlay>
+
         <!-- Camera Dialog -->
         <CameraDialog
           v-model="showCameraDialog"
@@ -217,6 +364,32 @@ onMounted(() => {
           v-model="showUploadDialog"
           :quiz-title="quizTitle"
           @submit="handleImageSubmit"
+        />
+
+        <!-- Edit Answers Dialog -->
+        <EditAnswersDialog
+          v-model="showEditAnswersDialog"
+          :quiz-title="quizTitle"
+          :extracted-answers="processingResults?.extractedAnswers"
+          :answer-key-data="studentQuizStore.currentQuiz"
+          @submit="handleAnswersSubmit"
+        />
+
+        <!-- Score Result Dialog -->
+        <ScoreResultDialog
+          v-model="showScoreResultDialog"
+          :quiz-title="quizTitle"
+          :student-name="submissionData?.studentName"
+          :student-id="submissionData?.studentId"
+          :score-data="scoreResults"
+          @close="() => { scoreResults = null; submissionData = null; }"
+        />
+
+        <!-- Search Result Dialog -->
+        <SearchResultDialog
+          v-model="showSearchResultDialog"
+          :quiz-title="quizTitle"
+          :answer-key-id="parseInt(quizId)"
         />
       </v-container>
     </template>
