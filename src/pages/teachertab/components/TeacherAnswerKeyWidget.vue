@@ -16,7 +16,6 @@ const showQrCodeDialog = ref(false)
 
 // Table headers
 const headers = [
-  { title: 'ID', key: 'id', sortable: true },
   { title: 'Title', key: 'title', sortable: true },
   { title: 'Description', key: 'description', sortable: false },
   { title: 'Status', key: 'is_active', sortable: true },
@@ -139,12 +138,6 @@ onMounted(() => {
           :items-per-page="itemsPerPage"
           class="elevation-1"
         >
-          <template v-slot:item.id="{ item }">
-            <v-chip size="small" color="primary" variant="outlined">
-              #{{ item.id }}
-            </v-chip>
-          </template>
-
           <template v-slot:item.title="{ item }">
             <div class="font-weight-medium">{{ item.title }}</div>
           </template>

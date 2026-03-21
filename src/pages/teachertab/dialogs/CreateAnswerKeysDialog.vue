@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAnswerKeysStore } from '@/stores/answerKeysData'
+import ImageSourceSelection from '../dialogs/answerkey/ImageSourceSelection.vue'
+import ImageCaptureUpload from '../dialogs/answerkey/ImageCaptureUpload.vue'
+import AnswerKeyForm from '../dialogs/answerkey/AnswerKeyForm.vue'
 
 interface Props {
   modelValue: boolean
@@ -15,12 +18,18 @@ const emit = defineEmits<Emits>()
 
 const answerKeysStore = useAnswerKeysStore()
 
+// Step management
+const currentStep = ref(1)
+const totalSteps = 3
+
+// Image source selection
+const imageSource = ref<'upload' | 'camera' | null>(null)
+
 // Form data
 const formData = ref({
   title: '',
   description: '',
   is_active: true,
-  answer_keys: null as any,
   answer_images: null as string | null
 })
 
@@ -32,8 +41,10 @@ const titleRules = [
 
 // File handling
 const imageFile = ref<File | null>(null)
-const answerKeyFile = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
+
+// Camera related
+const showCamera = ref(false)
 
 // Computed
 const isOpen = computed({
@@ -44,38 +55,49 @@ const isOpen = computed({
 const loading = computed(() => answerKeysStore.loading)
 
 // Functions
-const handleImageUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-
-  if (file) {
-    imageFile.value = file
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      imagePreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
+const nextStep = () => {
+  if (currentStep.value < totalSteps) {
+    currentStep.value++
   }
 }
 
-const handleAnswerKeyUpload = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-
-  if (file) {
-    answerKeyFile.value = file
-    // Parse JSON file
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const content = e.target?.result as string
-        formData.value.answer_keys = JSON.parse(content)
-      } catch (error) {
-        console.error('Error parsing answer key file:', error)
-      }
-    }
-    reader.readAsText(file)
+const prevStep = () => {
+  if (currentStep.value > 1) {
+    currentStep.value--
   }
+}
+
+const selectImageSource = (source: 'upload' | 'camera') => {
+  imageSource.value = source
+  if (source === 'camera') {
+    showCamera.value = true
+  }
+  nextStep()
+}
+
+const retakePhoto = () => {
+  imageFile.value = null
+  imagePreview.value = null
+  currentStep.value = 1
+  imageSource.value = null
+  showCamera.value = false
+}
+
+const handleImageUploaded = (file: File) => {
+  imageFile.value = file
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    imagePreview.value = e.target?.result as string
+    nextStep()
+  }
+  reader.readAsDataURL(file)
+}
+
+const handleImageCaptured = (data: { file: File, preview: string }) => {
+  imageFile.value = data.file
+  imagePreview.value = data.preview
+  showCamera.value = false
+  nextStep()
 }
 
 const removeImage = () => {
@@ -85,16 +107,17 @@ const removeImage = () => {
 }
 
 const resetForm = () => {
+  currentStep.value = 1
+  imageSource.value = null
   formData.value = {
     title: '',
     description: '',
     is_active: true,
-    answer_keys: null,
     answer_images: null
   }
   imageFile.value = null
-  answerKeyFile.value = null
   imagePreview.value = null
+  showCamera.value = false
 }
 
 const handleSubmit = async () => {
@@ -116,7 +139,6 @@ const handleSubmit = async () => {
       title: formData.value.title,
       description: formData.value.description,
       is_active: formData.value.is_active,
-      answer_keys: formData.value.answer_keys,
       answer_images: imageUrl || undefined
     }
 
@@ -148,121 +170,56 @@ const handleClose = () => {
       <v-card-title class="text-h5 font-weight-bold">
         <v-icon class="mr-2" color="primary">mdi-plus</v-icon>
         Create Answer Key
+        <v-spacer />
+        <v-chip size="small" color="primary" variant="outlined">
+          Step {{ currentStep }} of {{ totalSteps }}
+        </v-chip>
       </v-card-title>
 
       <v-card-text>
-        <v-form @submit.prevent="handleSubmit">
-          <v-row>
-            <!-- Title -->
-            <v-col cols="12">
-              <v-text-field
-                v-model="formData.title"
-                label="Title *"
-                :rules="titleRules"
-                variant="outlined"
-                required
-              />
-            </v-col>
+        <!-- Step 1: Choose Image Source -->
+        <ImageSourceSelection
+          v-if="currentStep === 1"
+          :selected-source="imageSource"
+          @select="selectImageSource"
+        />
 
-            <!-- Description -->
-            <v-col cols="12">
-              <v-textarea
-                v-model="formData.description"
-                label="Description"
-                variant="outlined"
-                rows="3"
-                counter="500"
-              />
-            </v-col>
+        <!-- Step 2: Image Capture/Upload -->
+        <ImageCaptureUpload
+          v-if="currentStep === 2"
+          :image-source="imageSource"
+          :image-preview="imagePreview"
+          :show-camera="showCamera"
+          @image-uploaded="handleImageUploaded"
+          @image-captured="handleImageCaptured"
+          @retake="retakePhoto"
+          @continue="nextStep"
+          @camera-ready="showCamera = true"
+        />
 
-            <!-- Status -->
-            <v-col cols="12">
-              <v-switch
-                v-model="formData.is_active"
-                label="Active"
-                color="primary"
-                inset
-              />
-            </v-col>
-
-            <!-- Answer Key File Upload -->
-            <v-col cols="12">
-              <v-file-input
-                label="Answer Key JSON File"
-                variant="outlined"
-                accept=".json"
-                prepend-icon="mdi-file-document"
-                @change="handleAnswerKeyUpload"
-              >
-                <template v-slot:selection="{ fileNames }">
-                  <v-chip
-                    v-for="name in fileNames"
-                    :key="name"
-                    size="small"
-                    label
-                    color="primary"
-                    class="me-2"
-                  >
-                    {{ name }}
-                  </v-chip>
-                </template>
-              </v-file-input>
-            </v-col>
-
-            <!-- Image Upload -->
-            <v-col cols="12">
-              <v-file-input
-                label="Answer Images"
-                variant="outlined"
-                accept="image/*"
-                prepend-icon="mdi-camera"
-                @change="handleImageUpload"
-              />
-
-              <!-- Image Preview -->
-              <div v-if="imagePreview" class="mt-2">
-                <v-card variant="outlined" class="pa-2">
-                  <div class="d-flex align-center">
-                    <v-img
-                      :src="imagePreview"
-                      max-height="100"
-                      max-width="100"
-                      class="me-3"
-                    />
-                    <div class="flex-grow-1">
-                      <div class="text-body-2">Image Preview</div>
-                      <div class="text-caption text-medium-emphasis">
-                        {{ imageFile?.name }}
-                      </div>
-                    </div>
-                    <v-btn
-                      icon="mdi-close"
-                      size="small"
-                      variant="text"
-                      @click="removeImage"
-                    />
-                  </div>
-                </v-card>
-              </div>
-            </v-col>
-
-            <!-- Answer Keys Preview -->
-            <v-col v-if="formData.answer_keys" cols="12">
-              <v-card variant="outlined">
-                <v-card-title class="text-subtitle-1">
-                  Answer Keys Preview
-                </v-card-title>
-                <v-card-text>
-                  <pre class="text-caption">{{ JSON.stringify(formData.answer_keys, null, 2) }}</pre>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-form>
+        <!-- Step 3: Form Details -->
+        <AnswerKeyForm
+          v-if="currentStep === 3"
+          v-model:form-data="formData"
+          :image-preview="imagePreview"
+          :image-file-name="imageFile?.name || null"
+          @edit-image="retakePhoto"
+          @submit="handleSubmit"
+        />
       </v-card-text>
 
       <v-card-actions>
+        <v-btn
+          v-if="currentStep > 1"
+          variant="outlined"
+          @click="prevStep"
+          prepend-icon="mdi-arrow-left"
+        >
+          Back
+        </v-btn>
+
         <v-spacer />
+
         <v-btn
           variant="outlined"
           @click="handleClose"
@@ -270,11 +227,13 @@ const handleClose = () => {
         >
           Cancel
         </v-btn>
+
         <v-btn
+          v-if="currentStep === 3"
           color="primary"
           @click="handleSubmit"
           :loading="loading"
-          :disabled="!formData.title"
+          :disabled="!formData.title || !imagePreview"
         >
           Create Answer Key
         </v-btn>
@@ -284,11 +243,5 @@ const handleClose = () => {
 </template>
 
 <style scoped>
-pre {
-  background-color: rgb(var(--v-theme-surface-variant));
-  padding: 8px;
-  border-radius: 4px;
-  overflow-x: auto;
-  max-height: 200px;
-}
+/* Minimal styles needed for the main dialog */
 </style>
