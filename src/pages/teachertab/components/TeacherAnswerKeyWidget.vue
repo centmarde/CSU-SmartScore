@@ -7,6 +7,7 @@ import EditAnswerKeysDialog from '../dialogs/EditAnswerKeysDialog.vue'
 import DeleteAnswerKeyDialog from '../dialogs/DeleteAnswerKeyDialog.vue'
 import ViewQrCodeDialog from '../dialogs/ViewQrCodeDialog.vue'
 import ViewAnswerDialog from '../dialogs/ViewAnswerDialog.vue'
+import { formatDate } from '@/pages/student/utils/helpers'
 
 const answerKeysStore = useAnswerKeysStore()
 const { mobile } = useDisplay()
@@ -65,17 +66,6 @@ const handleViewAnswer = (answerKey: AnswerKey) => {
 
 const toggleAnswerKeyStatus = async (answerKey: AnswerKey) => {
   await answerKeysStore.toggleAnswerKeyStatus(answerKey.id!, !answerKey.is_active)
-}
-
-const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return 'Unknown'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
 }
 
 const getStatusColor = (isActive: boolean) => {

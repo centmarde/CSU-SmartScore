@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useDisplay } from 'vuetify'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/stores/authUser'
-import { useUserPermissions } from '@/composables/useUserPermissions'
+import { useUserPermissions } from '@/router/guards'
 
 // Vuetify display composable for responsive design
 const { smAndDown } = useDisplay()
@@ -16,7 +16,7 @@ const route = useRoute()
 const authStore = useAuthUserStore()
 
 // User permissions composable
-const { getFilteredNavigationGroups, userRoleId, isLoading } = useUserPermissions()
+const { getFilteredNavigationGroups, userRoleId, isLoading, fetchUserAccessiblePages } = useUserPermissions()
 
 // Reactive state for sidebar
 const isExpanded = ref(true)
@@ -75,6 +75,13 @@ const isRouteActive = (routePath: string) => {
 const handleLogout = async () => {
   await authStore.signOut()
 }
+
+// Initialize permissions on mount
+onMounted(() => {
+  if (userRoleId.value) {
+    fetchUserAccessiblePages()
+  }
+})
 </script>
 
 <template>

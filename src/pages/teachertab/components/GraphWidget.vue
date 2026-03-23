@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useAnswerKeysStore, type AnswerKey } from '@/stores/answerKeysData'
 import { useStudentsStore, type Student } from '@/stores/studentsData'
+import { getScoreColor } from '@/pages/student/utils/helpers'
 
 const answerKeysStore = useAnswerKeysStore()
 const studentsStore = useStudentsStore()
@@ -110,12 +111,6 @@ const scoreDistributionData = computed(() => {
 })
 
 // Helper functions
-const getScoreColor = (score: number) => {
-  if (score >= 90) return '#4CAF50' // Green
-  if (score >= 80) return '#8BC34A' // Light Green
-  if (score >= 70) return '#FF9800' // Orange
-  return '#F44336' // Red
-}
 
 const getScoreGrade = (score: number) => {
   if (score >= 90) return 'Excellent'

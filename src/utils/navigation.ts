@@ -36,12 +36,17 @@ export const navigationConfig: NavigationGroup[] = [
     icon: 'mdi-school',
     permission: 'teacher.access',
     children: [
-
       {
         title: 'Answer Keys',
         icon: 'mdi-key',
         route: '/teachertab/teacher-answer-key',
         permission: 'teacher.answerkey.manage'
+      },
+      {
+        title: 'My Students',
+        icon: 'mdi-account-group',
+        route: '/teachertab/teacher-students',
+        permission: 'teacher.students.view'
       }
     ]
   },

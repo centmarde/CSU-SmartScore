@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useAnswerKeysStore } from '@/stores/answerKeysData'
+import { formatDate } from '@/pages/student/utils/helpers'
 
 interface Props {
   modelValue: boolean
@@ -43,16 +44,7 @@ const handleClose = () => {
   isOpen.value = false
 }
 
-const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return 'Unknown'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
+
 </script>
 
 <template>

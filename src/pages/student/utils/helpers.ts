@@ -1,9 +1,18 @@
 // Confidence and score helper functions
 
 /**
- * Get confidence color based on confidence level
+ * Get confidence color based on confidence level (Vuetify color names)
  */
 export const getConfidenceColor = (confidence: number): string => {
+  if (confidence >= 0.8) return 'green';
+  if (confidence >= 0.6) return 'orange';
+  return 'red';
+};
+
+/**
+ * Get confidence color based on confidence level (Vuetify theme colors)
+ */
+export const getConfidenceThemeColor = (confidence: number): string => {
   if (confidence >= 0.8) return 'success';
   if (confidence >= 0.5) return 'warning';
   return 'error';
@@ -19,9 +28,21 @@ export const getConfidenceText = (confidence: number): string => {
 };
 
 /**
- * Get score color based on percentage
+ * Get score color based on percentage (Vuetify color names)
  */
 export const getScoreColor = (score: number | null): string => {
+  if (score === null) return 'grey';
+  if (score >= 90) return 'green';
+  if (score >= 80) return 'light-green';
+  if (score >= 70) return 'orange';
+  if (score >= 60) return 'deep-orange';
+  return 'red';
+};
+
+/**
+ * Get score color based on percentage (Vuetify theme colors)
+ */
+export const getScoreThemeColor = (score: number | null): string => {
   if (!score) return 'grey';
   if (score >= 90) return 'success';
   if (score >= 80) return 'info';
@@ -69,6 +90,14 @@ export const getAnswerResultIcon = (isCorrect: boolean): string => {
  */
 export const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return 'N/A';
+  return new Date(dateString).toLocaleString();
+};
+
+/**
+ * Format full date string to locale string with fallback
+ */
+export const formatFullDate = (dateString: string | undefined): string => {
+  if (!dateString) return 'Unknown';
   return new Date(dateString).toLocaleString();
 };
 
