@@ -48,9 +48,11 @@ declare module 'vue-router/auto-routes' {
     '/teachertab/components/GraphWidget': RouteRecordInfo<'/teachertab/components/GraphWidget', '/teachertab/components/GraphWidget', Record<never, never>, Record<never, never>>,
     '/teachertab/components/QuizesListWIdget': RouteRecordInfo<'/teachertab/components/QuizesListWIdget', '/teachertab/components/QuizesListWIdget', Record<never, never>, Record<never, never>>,
     '/teachertab/components/TeacherAnswerKeyWidget': RouteRecordInfo<'/teachertab/components/TeacherAnswerKeyWidget', '/teachertab/components/TeacherAnswerKeyWidget', Record<never, never>, Record<never, never>>,
+    '/teachertab/components/TeacherStudentsWidget': RouteRecordInfo<'/teachertab/components/TeacherStudentsWidget', '/teachertab/components/TeacherStudentsWidget', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/answerkey/AnswerKeyForm': RouteRecordInfo<'/teachertab/dialogs/answerkey/AnswerKeyForm', '/teachertab/dialogs/answerkey/AnswerKeyForm', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/answerkey/ImageCaptureUpload': RouteRecordInfo<'/teachertab/dialogs/answerkey/ImageCaptureUpload', '/teachertab/dialogs/answerkey/ImageCaptureUpload', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/answerkey/ImageSourceSelection': RouteRecordInfo<'/teachertab/dialogs/answerkey/ImageSourceSelection', '/teachertab/dialogs/answerkey/ImageSourceSelection', Record<never, never>, Record<never, never>>,
+    '/teachertab/dialogs/AnswerPreviewDialog': RouteRecordInfo<'/teachertab/dialogs/AnswerPreviewDialog', '/teachertab/dialogs/AnswerPreviewDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/CreateAnswerKeysDialog': RouteRecordInfo<'/teachertab/dialogs/CreateAnswerKeysDialog', '/teachertab/dialogs/CreateAnswerKeysDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/DeleteAnswerKeyDialog': RouteRecordInfo<'/teachertab/dialogs/DeleteAnswerKeyDialog', '/teachertab/dialogs/DeleteAnswerKeyDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/DeleteConfirmationDialog': RouteRecordInfo<'/teachertab/dialogs/DeleteConfirmationDialog', '/teachertab/dialogs/DeleteConfirmationDialog', Record<never, never>, Record<never, never>>,
@@ -62,5 +64,6 @@ declare module 'vue-router/auto-routes' {
     '/teachertab/dialogs/ViewAnswerDialog': RouteRecordInfo<'/teachertab/dialogs/ViewAnswerDialog', '/teachertab/dialogs/ViewAnswerDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/dialogs/ViewQrCodeDialog': RouteRecordInfo<'/teachertab/dialogs/ViewQrCodeDialog', '/teachertab/dialogs/ViewQrCodeDialog', Record<never, never>, Record<never, never>>,
     '/teachertab/TeacherAnswerKeyView': RouteRecordInfo<'/teachertab/TeacherAnswerKeyView', '/teachertab/TeacherAnswerKeyView', Record<never, never>, Record<never, never>>,
+    '/teachertab/TeacherStudentsView': RouteRecordInfo<'/teachertab/TeacherStudentsView', '/teachertab/TeacherStudentsView', Record<never, never>, Record<never, never>>,
   }
 }

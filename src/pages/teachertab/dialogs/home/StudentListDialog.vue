@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useStudentsStore, type Student } from '@/stores/studentsData'
 import { type AnswerKey } from '@/stores/answerKeysData'
+import { getScoreColor, formatDate } from '@/pages/student/utils/helpers'
 
 // Props
 interface Props {
@@ -98,14 +99,7 @@ const quizStatistics = computed(() => {
   }
 })
 
-// Methods
-const getScoreColor = (score: number | null) => {
-  if (score === null || score === undefined) return 'grey'
-  if (score >= 90) return 'green'
-  if (score >= 80) return 'light-green'
-  if (score >= 75) return 'orange'
-  return 'red'
-}
+// Methods - using imported utility functions
 
 const getScoreText = (score: number | null) => {
   if (score === null || score === undefined) return 'Not Graded'

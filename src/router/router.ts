@@ -11,6 +11,7 @@ import UserManagementView from "@/pages/admin/UserManagementView.vue";
 import AnnouncementsView from "@/pages/admin/AnnouncementsView.vue";
 import SettingsView from "@/pages/account/SettingsView.vue";
 import TeacherAnswerKeyView from "@/pages/teachertab/TeacherAnswerKeyView.vue";
+import TeacherStudentsView from "@/pages/teachertab/TeacherStudentsView.vue";
 import StudentView from "@/pages/student/StudentView.vue";
 
 /**
@@ -54,6 +55,11 @@ const routes = setupLayouts([
   {
     path: "/teachertab/teacher-answer-key",
     component: TeacherAnswerKeyView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: "/teachertab/teacher-students",
+    component: TeacherStudentsView,
     meta: { requiresAuth: true }
   },
   {

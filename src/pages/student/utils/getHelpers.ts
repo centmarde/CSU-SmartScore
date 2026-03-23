@@ -235,6 +235,36 @@ export const getCorrectAnswerForQuestion = (
 };
 
 /**
+ * Get CSS class for answer card based on answer properties
+ */
+export const getAnswerCardClass = (answer: any): string => {
+  if (answer?.isManuallyEdited) return 'border-warning';
+  if (answer?.confidence && answer.confidence < 0.5) return 'border-error';
+  return '';
+};
+
+/**
+ * Get score text class for Vuetify text colors
+ */
+export const getScoreTextClass = (score: number | null): string => {
+  if (score === null) return 'text-medium-emphasis';
+  if (score >= 90) return 'text-green';
+  if (score >= 80) return 'text-light-green';
+  if (score >= 70) return 'text-orange';
+  if (score >= 60) return 'text-deep-orange';
+  return 'text-red';
+};
+
+/**
+ * Get quiz title from answer key ID (helper for teacher components)
+ */
+export const getQuizTitle = (answerKeyId: number | null, answerKeys: any[]): string => {
+  if (!answerKeyId) return 'Unknown Quiz';
+  const answerKey = answerKeys.find(key => key.id === answerKeyId);
+  return answerKey?.title || `Quiz #${answerKeyId}`;
+};
+
+/**
  * Check if student answer is correct
  */
 export const isAnswerCorrect = (

@@ -5,6 +5,7 @@ import { useAnswerKeysStore, type AnswerKey } from '@/stores/answerKeysData'
 import { useStudentsStore } from '@/stores/studentsData'
 import StudentListDialog from '../dialogs/home/StudentListDialog.vue'
 import QrDialog from '../dialogs/home/QrDialog.vue'
+import { formatDate } from '@/pages/student/utils/helpers'
 
 const answerKeysStore = useAnswerKeysStore()
 const studentsStore = useStudentsStore()
@@ -47,14 +48,7 @@ const handleViewQr = (quiz: AnswerKey) => {
   showQrDialog.value = true
 }
 
-const formatDate = (dateString: string | undefined) => {
-  if (!dateString) return 'Unknown'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+
 
 const getStatusColor = (isActive: boolean) => {
   return isActive ? 'success' : 'error'
