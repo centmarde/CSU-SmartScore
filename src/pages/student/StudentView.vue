@@ -381,6 +381,7 @@ onUnmounted(() => {
           :quiz-title="quizTitle"
           :student-name="submissionData?.studentName"
           :student-id="submissionData?.studentId"
+          :quiz-id="quizId"
           :score-data="scoreResults"
           @close="() => { scoreResults = null; submissionData = null; }"
         />
