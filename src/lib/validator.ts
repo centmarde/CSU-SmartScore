@@ -219,6 +219,26 @@ export const compareDatesValidator = (
   return comparisons[operator] || messages[operator];
 }
 
+// 👉 Student Name Validator
+export const studentNameValidator = (value: string | null | undefined): string | boolean => {
+  if (isEmpty(value)) return 'Student name is required';
+
+  const trimmedValue = String(value).trim();
+  if (trimmedValue.length < 2) return 'Student name must be at least 2 characters';
+
+  return true;
+};
+
+// 👉 Student ID Validator
+export const studentIdValidator = (value: string | null | undefined): string | boolean => {
+  if (isEmpty(value)) return 'Student ID is required';
+
+  const trimmedValue = String(value).trim();
+  if (trimmedValue.length < 3) return 'Student ID must be at least 3 characters';
+
+  return true;
+};
+
 // 👉 Safe Error Message Extractor for Supabase errors
 export const getErrorMessage = (error: string | { message?: string } | null | undefined): string => {
   if (!error) return 'An unknown error occurred';
