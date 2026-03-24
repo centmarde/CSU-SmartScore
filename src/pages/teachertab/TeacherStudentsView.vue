@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useDisplay } from 'vuetify'
 import {type Student } from '@/stores/studentsData'
 import { useTeacherStudents } from '@/pages/teachertab/composables/useTeacherStudents'
 import InnerLayoutWrapper from '@/layouts/InnerLayoutWrapper.vue'
 import AnswerPreviewDialog from '@/pages/teachertab/dialogs/AnswerPreviewDialog.vue'
 import {  formatDate } from '@/pages/student/utils/helpers'
 import { getScoreTextClass, getQuizTitle } from '@/pages/student/utils/getHelpers'
+
+// Vuetify display composable for responsive design
+const { mobile } = useDisplay()
 
 
 
@@ -18,16 +22,11 @@ const error = ref<string | null>(null)
 const searchQuery = ref('')
 const selectedAnswerKey = ref<number | null>(null)
 const scoreFilter = ref<string | null>(null)
+const viewMode = ref<'table' | 'card'>('table')
 
 // Dialog states
 const detailsDialog = ref(false)
-const editDialog = ref(false)
 const selectedStudent = ref<Student | null>(null)
-const editingStudent = ref<Student | null>(null)
-const editScore = ref<number>(0)
-const editRemarks = ref('')
-const updating = ref(false)
-const scoreErrors = ref<string[]>([])
 
 // Data table headers
 const headers = [
@@ -76,6 +75,9 @@ const totalStudents = computed(() => teacherStudents.stats.value.totalStudents)
 const totalAnswerKeys = computed(() => teacherStudents.stats.value.totalAnswerKeys)
 const averageScore = computed(() => teacherStudents.stats.value.averageScore)
 
+// Auto switch to card view on mobile, or use manual toggle
+const shouldShowCardView = computed(() => mobile.value || viewMode.value === 'card')
+
 // Methods
 const fetchData = async () => {
   loading.value = true
@@ -109,61 +111,6 @@ const formatTime = (dateString: string | undefined) => {
 const viewStudentDetails = (student: Student) => {
   selectedStudent.value = student
   detailsDialog.value = true
-}
-
-const editStudentScore = (student: Student) => {
-  editingStudent.value = student
-  editScore.value = student.score || 0
-  editRemarks.value = student.remarks || ''
-  scoreErrors.value = []
-  editDialog.value = true
-}
-
-const cancelEdit = () => {
-  editDialog.value = false
-  editingStudent.value = null
-  editScore.value = 0
-  editRemarks.value = ''
-  scoreErrors.value = []
-}
-
-const validateScore = () => {
-  scoreErrors.value = []
-  if (editScore.value < 0 || editScore.value > 100) {
-    scoreErrors.value.push('Score must be between 0 and 100')
-  }
-  return scoreErrors.value.length === 0
-}
-
-const saveStudentScore = async () => {
-  if (!editingStudent.value || !validateScore()) return
-
-  updating.value = true
-
-  try {
-    const result = await teacherStudents.updateStudentScore(
-      editingStudent.value.id!,
-      editScore.value,
-      editRemarks.value || undefined
-    )
-
-    if (result && 'error' in result && result.error) {
-      throw new Error(result.error)
-    }
-
-    // Refresh the data
-    await fetchData()
-
-    // Close dialog
-    editDialog.value = false
-
-    // Show success message (assuming you have a toast system)
-    // toast.success('Student score updated successfully')
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to update score'
-  } finally {
-    updating.value = false
-  }
 }// Lifecycle
 onMounted(() => {
   fetchData()
@@ -240,7 +187,7 @@ onMounted(() => {
                 clearable
               ></v-select>
             </v-col>
-            <v-col cols="12" md="4">
+            <v-col cols="12" md="3">
               <v-select
                 v-model="scoreFilter"
                 :items="scoreFilterOptions"
@@ -250,12 +197,25 @@ onMounted(() => {
                 clearable
               ></v-select>
             </v-col>
+            <!-- View Toggle (hidden on mobile) -->
+            <v-col v-if="!mobile" cols="12" md="1" class="d-flex align-center justify-end">
+              <v-btn-toggle
+                v-model="viewMode"
+                mandatory
+                density="compact"
+                color="primary"
+              >
+                <v-btn value="table" icon="mdi-table" size="small"></v-btn>
+                <v-btn value="card" icon="mdi-card-multiple" size="small"></v-btn>
+              </v-btn-toggle>
+            </v-col>
           </v-row>
         </v-card-text>
       </v-card>
 
-      <!-- Students Data Table -->
-      <v-card>
+      <!-- Students Data Display -->
+      <!-- Table View (Desktop) -->
+      <v-card v-if="!shouldShowCardView">
         <v-data-table
           :headers="headers"
           :items="filteredStudents"
@@ -342,17 +302,120 @@ onMounted(() => {
                 @click="viewStudentDetails(item)"
                 title="View Details"
               ></v-btn>
-              <v-btn
-                icon="mdi-pencil"
-                size="small"
-                variant="text"
-                @click="editStudentScore(item)"
-                title="Edit Score"
-              ></v-btn>
             </div>
           </template>
         </v-data-table>
       </v-card>
+
+      <!-- Card View (Mobile/Manual Toggle) -->
+      <div v-else>
+        <v-row>
+          <v-col
+            v-for="student in filteredStudents"
+            :key="student.id"
+            cols="12"
+            sm="6"
+            md="4"
+            lg="3"
+          >
+            <v-card class="student-card" elevation="2" hover>
+              <!-- Student Header -->
+              <v-card-text>
+                <div class="d-flex align-center mb-3">
+                  <v-avatar size="40" class="me-3">
+                    <v-img
+                      v-if="student.image_url"
+                      :src="student.image_url"
+                      alt="Student"
+                    ></v-img>
+                    <v-icon v-else>mdi-account</v-icon>
+                  </v-avatar>
+                  <div class="flex-grow-1">
+                    <div class="font-weight-bold">{{ student.fullname }}</div>
+                    <div class="text-caption text-medium-emphasis">ID: {{ student.student_id }}</div>
+                  </div>
+                </div>
+
+                <!-- Quiz Info -->
+                <div class="mb-3">
+                  <v-chip
+                    size="small"
+                    color="blue"
+                    variant="tonal"
+                    class="mb-2"
+                  >
+                    {{ getAnswerKeyTitle(student.answer_key_id) }}
+                  </v-chip>
+                  <div class="text-caption text-medium-emphasis">
+                    Quiz ID: {{ student.answer_key_id }}
+                  </div>
+                </div>
+
+                <!-- Score Display -->
+                <div class="mb-3">
+                  <div class="d-flex align-center justify-space-between mb-2">
+                    <span class="font-weight-medium">Score</span>
+                    <div v-if="student.score !== null" class="d-flex align-center">
+                      <v-progress-circular
+                        :model-value="student.score"
+                        :color="teacherStudents.getScoreColor(student.score)"
+                        size="24"
+                        width="3"
+                        class="me-2"
+                      ></v-progress-circular>
+                      <span :class="getScoreTextClass(student.score)">
+                        {{ student.score }}%
+                      </span>
+                    </div>
+                    <v-chip v-else color="grey" size="small" variant="outlined">
+                      Not Graded
+                    </v-chip>
+                  </div>
+                </div>
+
+                <!-- Remarks -->
+                <div v-if="student.remarks" class="mb-3">
+                  <div class="font-weight-medium mb-1">Remarks</div>
+                  <div class="text-body-2 text-medium-emphasis">
+                    {{ student.remarks }}
+                  </div>
+                </div>
+
+                <!-- Submission Date -->
+                <div class="mb-3">
+                  <div class="font-weight-medium mb-1">Submitted</div>
+                  <div class="text-body-2">{{ formatDate(student.created_at) }}</div>
+                  <div class="text-caption text-medium-emphasis">
+                    {{ formatTime(student.created_at) }}
+                  </div>
+                </div>
+              </v-card-text>
+
+              <!-- Card Actions -->
+              <v-card-actions class="pt-0">
+                <v-btn
+                  variant="outlined"
+                  size="small"
+                  prepend-icon="mdi-eye"
+                  @click="viewStudentDetails(student)"
+                  block
+                >
+                  View Details
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </v-col>
+        </v-row>
+
+        <!-- No Results Message -->
+        <v-card v-if="filteredStudents.length === 0" class="text-center pa-8">
+          <v-icon size="64" color="grey-lighten-1" class="mb-4">mdi-account-search</v-icon>
+          <h3 class="text-h6 mb-2">No students found</h3>
+          <p class="text-body-2 text-medium-emphasis">
+            Try adjusting your search or filter criteria
+          </p>
+        </v-card>
+      </div>
     </div>
 
     <!-- Student Details Dialog -->
@@ -360,47 +423,7 @@ onMounted(() => {
       v-model="detailsDialog"
       :student="selectedStudent"
       :quiz-title="selectedStudent ? getAnswerKeyTitle(selectedStudent.answer_key_id) : ''"
-      @edit-score="editStudentScore"
-    />    <!-- Edit Score Dialog -->
-    <v-dialog v-model="editDialog" max-width="500">
-      <v-card v-if="editingStudent">
-        <v-card-title>Edit Student Score</v-card-title>
-        <v-card-text>
-          <div class="mb-4">
-            <strong>Student:</strong> {{ editingStudent.fullname }} ({{ editingStudent.student_id }})
-          </div>
-
-          <v-text-field
-            v-model.number="editScore"
-            label="Score (%)"
-            type="number"
-            min="0"
-            max="100"
-            variant="outlined"
-            :error-messages="scoreErrors"
-          ></v-text-field>
-
-          <v-textarea
-            v-model="editRemarks"
-            label="Remarks (optional)"
-            variant="outlined"
-            rows="3"
-          ></v-textarea>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="grey" @click="cancelEdit">Cancel</v-btn>
-          <v-btn
-            color="primary"
-            @click="saveStudentScore"
-            :loading="updating"
-          >
-            Save
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    />
         </div>
       </v-container>
     </template>
@@ -416,5 +439,34 @@ onMounted(() => {
 
 .gap-4 {
   gap: 16px;
+}
+
+.student-card {
+  height: 100%;
+  transition: transform 0.2s ease-in-out;
+}
+
+.student-card:hover {
+  transform: translateY(-2px);
+}
+
+.student-card .v-card-text {
+  padding-bottom: 8px;
+}
+
+.student-card .v-card-actions {
+  padding-top: 8px;
+  padding-bottom: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .teacher-students-view {
+    padding: 16px;
+  }
+
+  .student-card .v-card-actions .v-btn {
+    font-size: 0.75rem;
+  }
 }
 </style>

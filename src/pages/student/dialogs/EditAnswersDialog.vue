@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { initializeAnswersFromExtractedData } from '../utils/getHelpers';
-import { getConfidenceColor, getConfidenceText } from '../utils/helpers';
+import { studentNameValidator, studentIdValidator } from '@/lib/validator';
 
 // Props
 interface Props {
@@ -27,6 +27,8 @@ const editableAnswers = ref<any[]>([]);
 const studentName = ref('');
 const studentId = ref('');
 const isSubmitting = ref(false);
+const studentNameError = ref<string[]>([]);
+const studentIdError = ref<string[]>([]);
 
 // Computed
 const totalQuestions = computed(() => editableAnswers.value.length);
@@ -90,6 +92,34 @@ const hasValidAnswer = (answer: string): boolean => {
 };
 
 /**
+ * Validation rules using centralized validators
+ */
+const studentNameRules = [(v: string) => studentNameValidator(v)];
+const studentIdRules = [(v: string) => studentIdValidator(v)];
+
+/**
+ * Validate form inputs
+ */
+const validateInputs = (): boolean => {
+  studentNameError.value = [];
+  studentIdError.value = [];
+
+  // Validate student name
+  const nameValidation = studentNameValidator(studentName.value);
+  if (nameValidation !== true) {
+    studentNameError.value = [typeof nameValidation === 'string' ? nameValidation : 'Invalid input'];
+  }
+
+  // Validate student ID
+  const idValidation = studentIdValidator(studentId.value);
+  if (idValidation !== true) {
+    studentIdError.value = [typeof idValidation === 'string' ? idValidation : 'Invalid input'];
+  }
+
+  return studentNameError.value.length === 0 && studentIdError.value.length === 0;
+};
+
+/**
  * Submit edited answers
  */
 const handleSubmit = async () => {
@@ -97,14 +127,7 @@ const handleSubmit = async () => {
     isSubmitting.value = true;
 
     // Validate required fields
-    if (!studentName.value || studentName.value.trim() === '') {
-      console.error('Student Name is required');
-      isSubmitting.value = false;
-      return;
-    }
-
-    if (!studentId.value || studentId.value.trim() === '') {
-      console.error('Student ID is required');
+    if (!validateInputs()) {
       isSubmitting.value = false;
       return;
     }
@@ -218,7 +241,11 @@ watch(() => props.extractedAnswers, () => {
               variant="outlined"
               density="comfortable"
               required
-              :rules="[v => !!v || 'Student name is required']"
+              :rules="studentNameRules"
+              :error-messages="studentNameError"
+              color="primary"
+              @input="studentNameError = []"
+              @blur="validateInputs"
             />
           </v-col>
           <v-col cols="12" md="6">
@@ -229,7 +256,11 @@ watch(() => props.extractedAnswers, () => {
               variant="outlined"
               density="comfortable"
               required
-              :rules="[v => !!v || 'Student ID is required']"
+              :rules="studentIdRules"
+              :error-messages="studentIdError"
+              color="primary"
+              @input="studentIdError = []"
+              @blur="validateInputs"
             />
           </v-col>
         </v-row>
