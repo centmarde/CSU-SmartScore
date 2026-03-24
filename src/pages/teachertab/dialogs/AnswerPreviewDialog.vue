@@ -1,3 +1,186 @@
+<script setup lang="ts">
+import { computed, watch } from 'vue'
+import type { Student } from '@/stores/studentsData'
+import { useAnswerKeysStore } from '@/stores/answerKeysData'
+import { getScoreColor, formatFullDate } from '@/pages/student/utils/helpers'
+import { getAnswerCardClass } from '@/pages/student/utils/getHelpers'
+
+// Props
+interface Props {
+  modelValue: boolean
+  student: Student | null
+  quizTitle?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: false,
+  student: null,
+  quizTitle: 'Unknown Quiz'
+})
+
+// Emits
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean]
+}>()
+
+// Store
+const answerKeysStore = useAnswerKeysStore()
+
+// Ensure answer keys are loaded when dialog opens
+watch(() => props.modelValue, (isOpen) => {
+  if (isOpen && answerKeysStore.answerKeys.length === 0) {
+    answerKeysStore.fetchAnswerKeys()
+  }
+})
+
+// Performance summary
+const performanceSummary = computed(() => {
+  if (!parsedAnswers.value.length) return null
+
+  const totalQuestions = parsedAnswers.value.length
+  const answeredQuestions = parsedAnswers.value.filter(a => a.selectedAnswer).length
+  const correctAnswers = parsedAnswers.value.filter(a => a.isCorrect).length
+  const incorrectAnswers = parsedAnswers.value.filter(a => !a.isCorrect && a.selectedAnswer).length
+  const unansweredQuestions = totalQuestions - answeredQuestions
+
+  return {
+    totalQuestions,
+    answeredQuestions,
+    correctAnswers,
+    incorrectAnswers,
+    unansweredQuestions,
+    accuracyRate: answeredQuestions > 0 ? (correctAnswers / answeredQuestions * 100) : 0
+  }
+})
+
+// Get the correct answers for this student's quiz
+const correctAnswers = computed(() => {
+  if (!props.student?.answer_key_id) return null
+
+  const answerKey = answerKeysStore.answerKeys.find(ak => ak.id === props.student?.answer_key_id)
+  if (!answerKey?.answer_keys) {
+    return null
+  }
+
+  try {
+    // Handle different formats of answer keys
+    if (Array.isArray(answerKey.answer_keys)) {
+      return answerKey.answer_keys
+    }
+
+    if (typeof answerKey.answer_keys === 'object') {
+      if ('answers' in answerKey.answer_keys) {
+        return answerKey.answer_keys.answers
+      }
+      return answerKey.answer_keys
+    }
+
+    return null
+  } catch (error) {
+    console.error('Error parsing correct answers:', error)
+    return null
+  }
+})
+
+// Computed properties
+const parsedAnswers = computed(() => {
+  if (!props.student?.answers) return []
+
+  try {
+    let studentAnswers: any[] = []
+
+    // Handle different answer formats
+    if (Array.isArray(props.student.answers)) {
+      studentAnswers = props.student.answers
+    } else if (typeof props.student.answers === 'object') {
+      // If it's an object, try to convert it to array or extract answers
+      if ('answers' in props.student.answers) {
+        studentAnswers = props.student.answers.answers
+      } else {
+        // If it's a flat object with question keys, convert to array
+        studentAnswers = Object.entries(props.student.answers).map(([key, value]: [string, any]) => ({
+          questionNumber: parseInt(key.replace(/\D/g, '')) || key,
+          ...value
+        }))
+      }
+    }
+
+    // Compare with correct answers and add comparison results
+    return studentAnswers.map((studentAnswer, index) => {
+      const questionNum = studentAnswer.questionNumber || (index + 1)
+      let correctAnswer = null
+      let isCorrect = false
+
+      if (correctAnswers.value) {
+        // Handle different correct answers data structures
+        let correctAnswersData = correctAnswers.value
+
+        // If it's an object with a 'questions' property (from AI processing)
+        if (typeof correctAnswers.value === 'object' && 'questions' in correctAnswers.value) {
+          correctAnswersData = correctAnswers.value.questions
+        }
+
+        if (Array.isArray(correctAnswersData)) {
+          // Try different ways to match the question
+          correctAnswer = correctAnswersData.find(ca =>
+            ca.question_number === questionNum ||
+            ca.questionNumber === questionNum ||
+            ca.question === questionNum ||
+            (ca.question_number === questionNum) ||
+            (parseInt(ca.question_number) === questionNum)
+          )
+        } else if (typeof correctAnswersData === 'object') {
+          correctAnswer = correctAnswersData[questionNum] || correctAnswersData[`question_${questionNum}`] || correctAnswersData[`q${questionNum}`]
+        }
+
+        if (correctAnswer) {
+          const correctAnswerValue = correctAnswer.correct_answer || correctAnswer.correctAnswer || correctAnswer.answer || correctAnswer.selected || correctAnswer
+          const studentAnswerValue = studentAnswer.selectedAnswer || studentAnswer.answer || studentAnswer.selected || studentAnswer
+
+          // More robust comparison handling
+          if (correctAnswerValue && studentAnswerValue) {
+            const correctStr = String(correctAnswerValue).toLowerCase().trim()
+            const studentStr = String(studentAnswerValue).toLowerCase().trim()
+            isCorrect = correctStr === studentStr
+
+            // Temporary debug for yellow icon issue - expanded to see more
+            console.log(`Q${questionNum}: Student="${studentStr}" vs Correct="${correctStr}" = ${isCorrect}`)
+            console.log(`Q${questionNum}: correctAnswer object:`, correctAnswer)
+            console.log(`Q${questionNum}: studentAnswer object:`, studentAnswer)
+          }
+        }
+      }
+
+      const result = {
+        ...studentAnswer,
+        questionNumber: questionNum,
+        correctAnswer: correctAnswer,
+        isCorrect: isCorrect
+      }
+
+      // Debug the final result for first few questions
+      if (questionNum <= 5) {
+        console.log(`Final Q${questionNum} result:`, result)
+        console.log(`Has correctAnswer: ${!!result.correctAnswer}, isCorrect: ${result.isCorrect}`)
+      }
+
+      return result
+    })
+
+  } catch (error) {
+    console.error('Error parsing answers:', error)
+    return []
+  }
+})
+
+// Methods
+const closeDialog = () => {
+  emit('update:modelValue', false)
+}
+
+// Helper functions are imported from utility files
+</script>
+
 <template>
   <v-dialog
     :model-value="modelValue"
@@ -59,6 +242,31 @@
           </v-col>
         </v-row>
 
+        <!-- Performance Summary -->
+        <div v-if="performanceSummary && correctAnswers" class="mb-4">
+          <v-card variant="outlined" class="pa-3">
+            <div class="text-subtitle-2 text-medium-emphasis mb-2">Answer Analysis</div>
+            <v-row class="text-center">
+              <v-col cols="3">
+                <div class="text-success text-h6 font-weight-bold">{{ performanceSummary.correctAnswers }}</div>
+                <div class="text-caption">Correct</div>
+              </v-col>
+              <v-col cols="3">
+                <div class="text-error text-h6 font-weight-bold">{{ performanceSummary.incorrectAnswers }}</div>
+                <div class="text-caption">Incorrect</div>
+              </v-col>
+              <v-col cols="3">
+                <div class="text-warning text-h6 font-weight-bold">{{ performanceSummary.unansweredQuestions }}</div>
+                <div class="text-caption">Unanswered</div>
+              </v-col>
+              <v-col cols="3">
+                <div class="text-primary text-h6 font-weight-bold">{{ performanceSummary.accuracyRate.toFixed(1) }}%</div>
+                <div class="text-caption">Accuracy</div>
+              </v-col>
+            </v-row>
+          </v-card>
+        </div>
+
         <!-- Answers Section -->
         <div v-if="parsedAnswers && parsedAnswers.length > 0">
           <div class="d-flex align-center justify-space-between mb-4">
@@ -80,27 +288,35 @@
               <v-card
                 variant="outlined"
                 class="answer-card"
-                :class="getAnswerCardClass(answer)"
+                :class="[
+                  // Prioritize correctness over other states
+                  answer.correctAnswer && answer.isCorrect ? 'border-success' :
+                  answer.correctAnswer && !answer.isCorrect ? 'border-error' :
+                  getAnswerCardClass(answer)
+                ]"
               >
                 <v-card-title class="d-flex align-center justify-space-between pa-3">
-                  <span class="text-subtitle-1">Question {{ answer.questionNumber || (Number(index) + 1) }}</span>
+                  <span class="text-subtitle-1">Question {{ answer.questionNumber || (Number(index) + 1) }}
+                    <!-- Temporary debug -->
+                    <small class="text-caption ml-2">[{{ answer.isCorrect ? 'CORRECT' : 'INCORRECT' }}]</small>
+                  </span>
                   <div class="d-flex align-center">
-                    <!-- Confidence indicator -->
-                    <v-tooltip v-if="answer.confidence" :text="`Confidence: ${(answer.confidence * 100).toFixed(1)}%`">
+                    <!-- Correct/Incorrect indicator -->
+                    <v-tooltip v-if="answer.correctAnswer" :text="answer.isCorrect ? 'Correct Answer' : 'Incorrect Answer'">
                       <template #activator="{ props }">
-                        <v-progress-circular
+                        <v-icon
                           v-bind="props"
-                          :model-value="answer.confidence * 100"
-                          :color="getConfidenceColor(answer.confidence)"
-                          size="24"
-                          width="3"
+                          :color="answer.isCorrect ? 'green' : 'red'"
+                          size="20"
                           class="me-2"
-                        ></v-progress-circular>
+                        >
+                          {{ answer.isCorrect ? 'mdi-check-circle' : 'mdi-close-circle' }}
+                        </v-icon>
                       </template>
                     </v-tooltip>
 
-                    <!-- Manual edit indicator -->
-                    <v-tooltip v-if="answer.isManuallyEdited" text="Manually edited">
+                    <!-- Manual edit indicator - only show if not showing correct/incorrect indicator -->
+                    <v-tooltip v-if="answer.isManuallyEdited && !answer.correctAnswer" text="Answer was manually edited by teacher">
                       <template #activator="{ props }">
                         <v-icon v-bind="props" color="warning" size="18">mdi-pencil</v-icon>
                       </template>
@@ -113,13 +329,25 @@
                 <v-card-text class="pa-3">
                   <!-- Selected Answer -->
                   <div class="mb-2">
-                    <div class="text-caption text-medium-emphasis mb-1">Selected Answer:</div>
+                    <div class="text-caption text-medium-emphasis mb-1">Student's Answer:</div>
                     <v-chip
-                      :color="answer.selectedAnswer ? 'primary' : 'grey'"
+                      :color="answer.selectedAnswer ? (answer.isCorrect ? 'green' : 'red') : 'grey'"
                       size="small"
                       variant="elevated"
                     >
                       {{ answer.selectedAnswer || 'No answer' }}
+                    </v-chip>
+                  </div>
+
+                  <!-- Correct Answer -->
+                  <div v-if="answer.correctAnswer" class="mb-2">
+                    <div class="text-caption text-medium-emphasis mb-1">Correct Answer:</div>
+                    <v-chip
+                      color="green"
+                      size="small"
+                      variant="outlined"
+                    >
+                      {{ answer.correctAnswer.correct_answer || answer.correctAnswer.correctAnswer || answer.correctAnswer.answer || answer.correctAnswer }}
                     </v-chip>
                   </div>
 
@@ -138,19 +366,6 @@
                       </v-chip>
                     </div>
                   </div>
-
-                  <!-- Confidence Details -->
-                  <div v-if="answer.confidence" class="mt-3">
-                    <div class="text-caption text-medium-emphasis">
-                      Confidence: {{ (answer.confidence * 100).toFixed(1) }}%
-                    </div>
-                    <v-progress-linear
-                      :model-value="answer.confidence * 100"
-                      :color="getConfidenceColor(answer.confidence)"
-                      height="4"
-                      rounded
-                    ></v-progress-linear>
-                  </div>
                 </v-card-text>
               </v-card>
             </v-col>
@@ -166,21 +381,7 @@
           </div>
         </div>
 
-        <!-- Raw Data Toggle (for debugging) -->
-        <v-divider class="my-6"></v-divider>
-        <v-expansion-panels v-if="student.answers" variant="accordion">
-          <v-expansion-panel>
-            <v-expansion-panel-title>
-              <div class="d-flex align-center">
-                <v-icon class="me-2" size="20">mdi-code-json</v-icon>
-                Raw Data (Developer View)
-              </div>
-            </v-expansion-panel-title>
-            <v-expansion-panel-text>
-              <pre class="text-caption bg-grey-lighten-4 pa-3 rounded overflow-auto">{{ JSON.stringify(student.answers, null, 2) }}</pre>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-        </v-expansion-panels>
+
       </v-card-text>
 
       <v-card-actions class="pa-4">
@@ -188,87 +389,12 @@
         <v-btn color="grey" variant="text" @click="closeDialog">
           Close
         </v-btn>
-        <v-btn
-          color="primary"
-          variant="elevated"
-          @click="editScore"
-        >
-          Edit Score
-        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 
-<script setup lang="ts">
-import { computed } from 'vue'
-import type { Student } from '@/stores/studentsData'
-import { getScoreColor, getConfidenceColor, formatFullDate } from '@/pages/student/utils/helpers'
-import { getAnswerCardClass } from '@/pages/student/utils/getHelpers'
 
-// Props
-interface Props {
-  modelValue: boolean
-  student: Student | null
-  quizTitle?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  modelValue: false,
-  student: null,
-  quizTitle: 'Unknown Quiz'
-})
-
-// Emits
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  'edit-score': [student: Student]
-}>()
-
-// Computed properties
-const parsedAnswers = computed(() => {
-  if (!props.student?.answers) return []
-
-  try {
-    // Handle different answer formats
-    if (Array.isArray(props.student.answers)) {
-      return props.student.answers
-    }
-
-    if (typeof props.student.answers === 'object') {
-      // If it's an object, try to convert it to array or extract answers
-      if ('answers' in props.student.answers) {
-        return props.student.answers.answers
-      }
-
-      // If it's a flat object with question keys, convert to array
-      return Object.entries(props.student.answers).map(([key, value]: [string, any]) => ({
-        questionNumber: parseInt(key.replace(/\D/g, '')) || key,
-        ...value
-      }))
-    }
-
-    return []
-  } catch (error) {
-    console.error('Error parsing answers:', error)
-    return []
-  }
-})
-
-// Methods
-const closeDialog = () => {
-  emit('update:modelValue', false)
-}
-
-const editScore = () => {
-  if (props.student) {
-    emit('edit-score', props.student)
-    closeDialog()
-  }
-}
-
-// Helper functions are imported from utility files
-</script>
 
 <style scoped>
 .answer-card {
@@ -286,7 +412,11 @@ const editScore = () => {
 }
 
 .border-error {
-  border-left: 4px solid rgb(var(--v-theme-error)) !important;
+  border-left: 4px solid #F44336 !important; /* Explicit red color */
+}
+
+.border-success {
+  border-left: 4px solid #4CAF50 !important; /* Explicit green color */
 }
 
 pre {
