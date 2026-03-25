@@ -135,19 +135,14 @@
         "subtitle": "Meet the architects behind CSU-SmartScore system",
         "members": [
           {
-            "name": "AI Systems Architect",
-            "role": "Machine Learning & LLM Integration",
+            "name": "Jane Faith Marie Patula",
+            "role": "Backend Development",
             "avatar": "/images/team/ai-architect.jpg"
           },
           {
-            "name": "Full Stack Developer",
-            "role": "Frontend & Backend Development",
-            "avatar": "/images/team/fullstack-dev.jpg"
-          },
-          {
-            "name": "UI/UX Designer",
-            "role": "User Experience & Interface Design",
-            "avatar": "/images/team/ui-designer.jpg"
+            "name": "Cathy Tolo Bantilan",
+            "role": "Frontend Development",
+            "avatar": "/images/team/frontend-dev.jpg"
           }
         ]
       }
