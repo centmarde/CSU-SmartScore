@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { useAnswerKeysStore } from './answerKeysData';
 import type { AnswerKey } from './answerKeysData';
+import { createGroqSynonymService } from '@/lib/aiSynonym';
 
 /**
  * Interface for student answer
@@ -23,6 +24,8 @@ interface AnswerComparison {
     correctAnswer: string;
     isCorrect: boolean;
     points: number;
+    confidence?: number;
+    explanation?: string;
 }
 
 /**
@@ -119,9 +122,9 @@ export const useStudentQuizStore = defineStore('studentQuiz', () => {
     };
 
     /**
-     * Compare student answers with the correct answer key
+     * Compare student answers with the correct answer key using AI synonym checking
      */
-    const compareAnswers = (studentAnswers: StudentAnswer[], answerKeyId: number) => {
+    const compareAnswers = async (studentAnswers: StudentAnswer[], answerKeyId: number) => {
         if (!currentQuiz.value || currentQuiz.value.id !== answerKeyId) {
             throw new Error('Quiz not loaded or ID mismatch');
         }
@@ -131,8 +134,6 @@ export const useStudentQuizStore = defineStore('studentQuiz', () => {
             throw new Error('Answer key questions not found');
         }
 
-        const comparisons: AnswerComparison[] = [];
-        let totalScore = 0;
         const totalQuestions = answerKey.questions.length;
 
         // Create a map of answer key questions for easy lookup
@@ -141,12 +142,70 @@ export const useStudentQuizStore = defineStore('studentQuiz', () => {
             answerKeyMap.set(question.question_number || question.questionNumber, question.correct_answer);
         });
 
-        // Compare each student answer
+        // Prepare pairs for batch synonym checking
+        const answerPairs = studentAnswers
+            .filter(studentAnswer => answerKeyMap.has(studentAnswer.questionNumber))
+            .map(studentAnswer => ({
+                questionNumber: studentAnswer.questionNumber,
+                studentAnswer: studentAnswer.selectedAnswer,
+                correctAnswer: answerKeyMap.get(studentAnswer.questionNumber)
+            }));
+
+        // Check if answers need AI synonym checking
+        // For multiple choice (A, B, C, D), use exact match
+        // For text answers, use AI synonym checking
+        const needsAICheck = answerPairs.some(pair => {
+            const isMultipleChoice = /^[A-Da-d]$/.test(pair.studentAnswer.trim()) &&
+                                     /^[A-Da-d]$/.test(pair.correctAnswer.trim());
+            return !isMultipleChoice;
+        });
+
+        let synonymResults: any = null;
+
+        if (needsAICheck) {
+            try {
+                console.log('🤖 Using AI synonym checking for answers...');
+                const synonymService = createGroqSynonymService();
+                synonymResults = await synonymService.checkBatchSynonyms(answerPairs);
+            } catch (error) {
+                console.warn('AI synonym check failed, falling back to exact match:', error);
+            }
+        }
+
+        // Build comparisons using AI results or exact match
+        const comparisons: AnswerComparison[] = [];
+        let totalScore = 0;
+
         studentAnswers.forEach((studentAnswer) => {
             const correctAnswer = answerKeyMap.get(studentAnswer.questionNumber);
 
             if (correctAnswer !== undefined) {
-                const isCorrect = studentAnswer.selectedAnswer.toUpperCase() === correctAnswer.toUpperCase();
+                const isMultipleChoice = /^[A-Da-d]$/.test(studentAnswer.selectedAnswer.trim()) &&
+                                        /^[A-Da-d]$/.test(correctAnswer.trim());
+
+                let isCorrect: boolean;
+                let confidence: number | undefined;
+                let explanation: string | undefined;
+
+                if (synonymResults && !isMultipleChoice) {
+                    // Use AI synonym check result
+                    const aiResult = synonymResults.comparisons.find(
+                        (comp: any) => comp.questionNumber === studentAnswer.questionNumber
+                    );
+
+                    if (aiResult) {
+                        isCorrect = aiResult.areEquivalent;
+                        confidence = aiResult.confidence;
+                        explanation = aiResult.explanation;
+                    } else {
+                        // Fallback to exact match
+                        isCorrect = studentAnswer.selectedAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
+                    }
+                } else {
+                    // Use exact match for multiple choice or when AI is not available
+                    isCorrect = studentAnswer.selectedAnswer.toUpperCase() === correctAnswer.toUpperCase();
+                }
+
                 const points = isCorrect ? 1 : 0;
 
                 comparisons.push({
@@ -154,7 +213,9 @@ export const useStudentQuizStore = defineStore('studentQuiz', () => {
                     studentAnswer: studentAnswer.selectedAnswer,
                     correctAnswer: correctAnswer,
                     isCorrect: isCorrect,
-                    points: points
+                    points: points,
+                    confidence: confidence,
+                    explanation: explanation
                 });
 
                 totalScore += points;
@@ -175,11 +236,11 @@ export const useStudentQuizStore = defineStore('studentQuiz', () => {
     };
 
     /**
-     * Grade student submission
+     * Grade student submission with AI synonym checking
      */
-    const gradeStudentSubmission = (studentAnswers: StudentAnswer[], answerKeyId: number) => {
+    const gradeStudentSubmission = async (studentAnswers: StudentAnswer[], answerKeyId: number) => {
         try {
-            const result = compareAnswers(studentAnswers, answerKeyId);
+            const result = await compareAnswers(studentAnswers, answerKeyId);
 
             // Generate remarks based on score
             let remarks = '';

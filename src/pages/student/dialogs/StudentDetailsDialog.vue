@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue';
 import { useAnswerKeysStore } from '@/stores/answerKeysData';
 import type { Student } from '@/stores/studentsData';
 import { getScoreColor, getGradeLetter, formatDate, getQuestionNumber } from '../utils/helpers';
-import { getAnswerValue, getCorrectAnswerForQuestion, isAnswerCorrect } from '../utils/getHelpers';
+import { getAnswerValue, getCorrectAnswerForQuestion, isAnswerCorrect, batchCheckAnswersWithAI } from '../utils/getHelpers';
 
 // Props
 interface Props {
@@ -28,9 +28,15 @@ const answerKeysStore = useAnswerKeysStore();
 // State
 const answerKeyData = ref<any>(null);
 const isLoading = ref(false);
+const aiComparisons = ref<Map<number, {
+  areEquivalent: boolean;
+  confidence: number;
+  explanation: string;
+}>>(new Map());
 
 // Computed
 const passStatus = computed(() => (props.student?.score ?? 0) >= 75);
+const isQuizActive = computed(() => answerKeyData.value?.is_active || false);
 
 /**
  * Fetch answer key data when student is provided
@@ -52,6 +58,9 @@ const fetchAnswerKeyData = async () => {
       answerKeyData.value = data;
       console.log('Answer key data loaded successfully:', data);
       console.log('Answer keys structure:', data.answer_keys);
+
+      // Perform AI synonym checking for answers
+      await performAISynonymChecking();
     } else {
       console.warn('No answer key data returned');
     }
@@ -63,6 +72,92 @@ const fetchAnswerKeyData = async () => {
 };
 
 /**
+ * Perform AI synonym checking on student answers using the new batch helper
+ */
+const performAISynonymChecking = async () => {
+  if (!props.student?.answers || !answerKeyData.value?.answer_keys?.questions) {
+    console.log('No answers or answer key data available for AI checking');
+    return;
+  }
+
+  try {
+    const answerKeyQuestions = answerKeyData.value.answer_keys.questions;
+
+    // Create a map of correct answers by question number
+    const correctAnswersMap = new Map<number, string>();
+    answerKeyQuestions.forEach((q: any) => {
+      correctAnswersMap.set(q.question_number, q.correct_answer);
+    });
+
+    // Prepare answer pairs for batch checking
+    const answerPairs: Array<{
+      questionNumber: number;
+      studentAnswer: string;
+      correctAnswer: string;
+    }> = [];
+
+    // Handle different answer formats
+    const studentAnswers = props.student.answers;
+
+    if (typeof studentAnswers === 'object' && !Array.isArray(studentAnswers)) {
+      // Object format
+      Object.entries(studentAnswers).forEach(([key, answer]) => {
+        const questionNum = getQuestionNumber(key);
+        const correctAnswer = correctAnswersMap.get(questionNum);
+        const studentAnswer = getAnswerValue(answer);
+
+        if (correctAnswer && studentAnswer && studentAnswer !== 'No Answer') {
+          answerPairs.push({
+            questionNumber: questionNum,
+            studentAnswer,
+            correctAnswer
+          });
+        }
+      });
+    } else if (Array.isArray(studentAnswers)) {
+      // Array format
+      studentAnswers.forEach((answer, index) => {
+        const questionNum = index + 1;
+        const correctAnswer = correctAnswersMap.get(questionNum);
+        const studentAnswer = getAnswerValue(answer);
+
+        if (correctAnswer && studentAnswer && studentAnswer !== 'No Answer') {
+          answerPairs.push({
+            questionNumber: questionNum,
+            studentAnswer,
+            correctAnswer
+          });
+        }
+      });
+    }
+
+    if (answerPairs.length === 0) {
+      console.log('No answer pairs to check');
+      return;
+    }
+
+    console.log('🤖 Performing AI synonym checking for', answerPairs.length, 'answers');
+
+    // Use the new batch checking helper with AI synonym support
+    const results = await batchCheckAnswersWithAI(answerPairs);
+
+    // Store results in map
+    aiComparisons.value.clear();
+    results.forEach((result, questionNumber) => {
+      aiComparisons.value.set(questionNumber, {
+        areEquivalent: result.isCorrect,
+        confidence: result.confidence,
+        explanation: result.explanation
+      });
+    });
+
+    console.log('✅ AI synonym checking completed:', aiComparisons.value);
+  } catch (error) {
+    console.error('❌ Error performing AI synonym checking:', error);
+  }
+};
+
+/**
  * Get correct answer from answer key data
  */
 const getCorrectAnswer = (questionNumber: string | number) => {
@@ -70,10 +165,27 @@ const getCorrectAnswer = (questionNumber: string | number) => {
 };
 
 /**
- * Check if student answer is correct
+ * Check if student answer is correct (with AI synonym checking)
  */
 const isAnswerCorrectLocal = (studentAnswer: string, questionNumber: string | number) => {
+  const questionNum = typeof questionNumber === 'string' ? getQuestionNumber(questionNumber) : questionNumber;
+
+  // Check if we have AI comparison result for this question
+  const aiResult = aiComparisons.value.get(questionNum);
+  if (aiResult) {
+    return aiResult.areEquivalent;
+  }
+
+  // Fallback to exact match
   return isAnswerCorrect(studentAnswer, questionNumber, answerKeyData.value);
+};
+
+/**
+ * Get AI comparison data for a question
+ */
+const getAIComparison = (questionNumber: string | number) => {
+  const questionNum = typeof questionNumber === 'string' ? getQuestionNumber(questionNumber) : questionNumber;
+  return aiComparisons.value.get(questionNum);
 };
 
 /**
@@ -81,6 +193,7 @@ const isAnswerCorrectLocal = (studentAnswer: string, questionNumber: string | nu
  */
 const handleClose = () => {
   answerKeyData.value = null;
+  aiComparisons.value.clear();
   emit('update:modelValue', false);
   emit('close');
 };
@@ -230,22 +343,42 @@ watch(() => props.modelValue, (isOpen) => {
                     </template>
 
                     <v-list-item-title>
-                      <div class="d-flex align-center justify-space-between">
-                        <span class="text-body-1">Question {{ getQuestionNumber(questionKey) }}</span>
-                        <div class="d-flex gap-2">
+                      <div class="d-flex flex-column">
+                        <div class="d-flex align-center justify-space-between mb-2">
+                          <span class="text-body-1">Question {{ getQuestionNumber(questionKey) }}</span>
+                          <div class="d-flex gap-2">
+                            <v-chip
+                              :color="isAnswerCorrectLocal(getAnswerValue(answer), getQuestionNumber(questionKey)) ? 'success' : 'error'"
+                              size="small"
+                              variant="outlined"
+                            >
+                              Your Answer: {{ getAnswerValue(answer) }}
+                            </v-chip>
+                            <v-chip
+                              v-if="!isQuizActive"
+                              color="primary"
+                              size="small"
+                              variant="tonal"
+                            >
+                              Correct: {{ getCorrectAnswer(getQuestionNumber(questionKey)) }}
+                            </v-chip>
+                          </div>
+                        </div>
+
+                        <!-- AI Explanation (if available and quiz is not active) -->
+                        <div
+                          v-if="getAIComparison(getQuestionNumber(questionKey)) && !isQuizActive"
+                          class="text-caption text-medium-emphasis mt-1 ml-2"
+                        >
+                          <v-icon size="x-small" class="mr-1">mdi-robot</v-icon>
+                          {{ getAIComparison(getQuestionNumber(questionKey))?.explanation }}
                           <v-chip
-                            :color="isAnswerCorrectLocal(getAnswerValue(answer), getQuestionNumber(questionKey)) ? 'success' : 'error'"
-                            size="small"
-                            variant="outlined"
+                            v-if="getAIComparison(getQuestionNumber(questionKey))?.confidence !== undefined"
+                            size="x-small"
+                            variant="text"
+                            class="ml-2"
                           >
-                            Your Answer: {{ getAnswerValue(answer) }}
-                          </v-chip>
-                          <v-chip
-                            color="primary"
-                            size="small"
-                            variant="tonal"
-                          >
-                            Correct: {{ getCorrectAnswer(getQuestionNumber(questionKey)) }}
+                            Confidence: {{ Math.round((getAIComparison(getQuestionNumber(questionKey))?.confidence || 0) * 100) }}%
                           </v-chip>
                         </div>
                       </div>
@@ -277,22 +410,42 @@ watch(() => props.modelValue, (isOpen) => {
                     </template>
 
                     <v-list-item-title>
-                      <div class="d-flex align-center justify-space-between">
-                        <span class="text-body-1">Question {{ index + 1 }}</span>
-                        <div class="d-flex gap-2">
+                      <div class="d-flex flex-column">
+                        <div class="d-flex align-center justify-space-between mb-2">
+                          <span class="text-body-1">Question {{ index + 1 }}</span>
+                          <div class="d-flex gap-2">
+                            <v-chip
+                              :color="isAnswerCorrectLocal(getAnswerValue(answer), index + 1) ? 'success' : 'error'"
+                              size="small"
+                              variant="outlined"
+                            >
+                              Your Answer: {{ getAnswerValue(answer) }}
+                            </v-chip>
+                            <v-chip
+                              v-if="!isQuizActive"
+                              color="primary"
+                              size="small"
+                              variant="tonal"
+                            >
+                              Correct: {{ getCorrectAnswer(index + 1) }}
+                            </v-chip>
+                          </div>
+                        </div>
+
+                        <!-- AI Explanation (if available and quiz is not active) -->
+                        <div
+                          v-if="getAIComparison(index + 1) && !isQuizActive"
+                          class="text-caption text-medium-emphasis mt-1 ml-2"
+                        >
+                          <v-icon size="x-small" class="mr-1">mdi-robot</v-icon>
+                          {{ getAIComparison(index + 1)?.explanation }}
                           <v-chip
-                            :color="isAnswerCorrectLocal(getAnswerValue(answer), index + 1) ? 'success' : 'error'"
-                            size="small"
-                            variant="outlined"
+                            v-if="getAIComparison(index + 1)?.confidence !== undefined"
+                            size="x-small"
+                            variant="text"
+                            class="ml-2"
                           >
-                            Your Answer: {{ getAnswerValue(answer) }}
-                          </v-chip>
-                          <v-chip
-                            color="primary"
-                            size="small"
-                            variant="tonal"
-                          >
-                            Correct: {{ getCorrectAnswer(index + 1) }}
+                            Confidence: {{ Math.round((getAIComparison(index + 1)?.confidence || 0) * 100) }}%
                           </v-chip>
                         </div>
                       </div>
