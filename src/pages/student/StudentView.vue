@@ -287,12 +287,12 @@ onUnmounted(() => {
                 <!-- Status Messages -->
                 <v-alert
                   v-if="!isQuizActive"
-                  type="warning"
+                  type="info"
                   variant="tonal"
                   density="compact"
                   class="mt-4"
                 >
-                  This quiz is currently inactive
+                  This quiz is currently inactive. You can still view your previous submissions and see correct answers with AI explanations.
                 </v-alert>
 
                 <v-alert
