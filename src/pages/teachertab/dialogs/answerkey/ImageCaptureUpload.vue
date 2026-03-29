@@ -5,7 +5,7 @@
       <div class="text-center mb-4">
         <h3 class="text-h6 mb-2">Upload Answer Sheet Image</h3>
         <p class="text-body-2 text-medium-emphasis">
-          Drag and drop an image or click to select
+          Drag and drop an image or PDF file, or click to select
         </p>
       </div>
 
@@ -31,7 +31,7 @@
           </div>
 
           <div class="text-body-1 mb-3" :class="isDragOver ? 'text-primary' : 'text-medium-emphasis'">
-            {{ isDragOver ? 'Release to upload your file' : 'Drag and drop an image or click to browse' }}
+            {{ isDragOver ? 'Release to upload your file' : 'Drag and drop an image or PDF file, or click to browse' }}
           </div>
 
           <v-divider class="my-3 mx-auto" style="max-width: 200px;"></v-divider>
@@ -40,6 +40,7 @@
             <v-chip size="small" variant="outlined" class="mx-1">JPG</v-chip>
             <v-chip size="small" variant="outlined" class="mx-1">PNG</v-chip>
             <v-chip size="small" variant="outlined" class="mx-1">GIF</v-chip>
+            <v-chip size="small" variant="outlined" class="mx-1">PDF</v-chip>
           </div>
 
           <div class="text-caption text-medium-emphasis">
@@ -60,13 +61,13 @@
         <input
           ref="fileInput"
           type="file"
-          accept="image/*"
+          accept="image/*,application/pdf"
           style="display: none"
           @change="handleFileSelect"
         />
       </div>
 
-      <!-- Upload progress (if needed in future) -->
+      <!-- Upload progress -->
       <div v-if="isUploading" class="mt-4">
         <v-progress-linear
           :model-value="uploadProgress"
@@ -75,7 +76,7 @@
           rounded
         />
         <div class="text-center text-caption mt-1">
-          Uploading... {{ uploadProgress }}%
+          {{ uploadProgress < 80 ? 'Creating PDF preview...' : 'Processing...' }} {{ uploadProgress }}%
         </div>
       </div>
     </div>
@@ -145,6 +146,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { PDFDocument } from 'pdf-lib'
+import { createWorker } from 'tesseract.js'
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Set up pdf.js worker using CDN for exact version match
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296/build/pdf.worker.min.mjs'
 
 interface Props {
   imageSource: 'upload' | 'camera' | null
@@ -152,8 +159,26 @@ interface Props {
   showCamera: boolean
 }
 
+interface PdfPageData {
+  pageNumber: number
+  imageFile: File
+  preview: string
+  ocrText?: string
+  ocrConfidence?: number
+}
+
+interface OCRResult {
+  text: string
+  confidence: number
+  words: Array<{
+    text: string
+    bbox: { x0: number, y0: number, x1: number, y1: number }
+    confidence: number
+  }>
+}
+
 interface Emits {
-  (e: 'imageUploaded', file: File): void
+  (e: 'imageUploaded', file: File, isPdf?: boolean, pdfPages?: PdfPageData[]): void
   (e: 'imageCaptured', data: { file: File, preview: string }): void
   (e: 'retake'): void
   (e: 'continue'): void
@@ -178,7 +203,7 @@ const uploadProgress = ref(0)
 
 // File validation
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf']
 
 const startCamera = async () => {
   try {
@@ -236,7 +261,7 @@ const validateFile = (file: File): boolean => {
   clearError()
 
   if (!ALLOWED_TYPES.includes(file.type)) {
-    setError('Please select a valid image file (JPG, PNG, GIF)')
+    setError('Please select a valid file (JPG, PNG, GIF, PDF)')
     return false
   }
 
@@ -258,7 +283,182 @@ const clearError = () => {
   hasError.value = false
 }
 
-// Dropzone event handlers
+// OCR processing function
+const performOCROnImage = async (imageFile: File): Promise<OCRResult> => {
+  try {
+    console.log('🔍 Starting OCR processing:', {
+      fileName: imageFile.name,
+      fileSize: `${(imageFile.size / 1024).toFixed(2)} KB`,
+      fileType: imageFile.type
+    })
+
+    const worker = await createWorker('eng')
+
+    console.log('⚙️ OCR Worker initialized')
+
+    const { data } = await worker.recognize(imageFile)
+
+    console.log('✅ OCR Processing Complete:', {
+      textLength: data.text.length,
+      confidence: data.confidence,
+      wordsCount: (data as any).words?.length || 0,
+      extractedText: data.text.substring(0, 200) + (data.text.length > 200 ? '...' : '')
+    })
+
+    await worker.terminate()
+
+    return {
+      text: data.text,
+      confidence: data.confidence,
+      words: ((data as any).words || []).map((word: any) => ({
+        text: word.text,
+        bbox: word.bbox,
+        confidence: word.confidence
+      }))
+    }
+  } catch (error) {
+    console.error('❌ OCR Error:', error)
+    throw error
+  }
+}
+
+// PDF to individual page images conversion using pdfjs-dist with OCR
+const convertPdfToImages = async (file: File): Promise<PdfPageData[]> => {
+  try {
+    console.log('🔍 PDF Extraction Started:', {
+      fileName: file.name,
+      fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      fileType: file.type
+    })
+
+    const arrayBuffer = await file.arrayBuffer()
+
+    // Load PDF using pdfjs-dist for proper rendering
+    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise
+    const numPages = pdf.numPages
+
+    if (numPages === 0) {
+      throw new Error('PDF has no pages')
+    }
+
+    console.log('📄 PDF Document Loaded:', {
+      totalPages: numPages,
+      pdfInfo: pdf._pdfInfo
+    })
+
+    const pdfPages: PdfPageData[] = []
+    const originalName = file.name.replace(/\.pdf$/i, '')
+
+    // Process each page
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      console.log(`📑 Processing PDF Page ${pageNum}/${numPages}`)
+
+      const page = await pdf.getPage(pageNum)
+      const viewport = page.getViewport({ scale: 2.0 }) // High resolution for OCR
+
+      // Create canvas for rendering
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')!
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+
+      // Render PDF page to canvas
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport,
+        canvas: canvas
+      }
+
+      console.log(`🖼️ Rendering PDF Page ${pageNum} to canvas:`, {
+        width: viewport.width,
+        height: viewport.height,
+        scale: 2.0
+      })
+
+      await page.render(renderContext).promise
+
+      // Convert canvas to blob and create File
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob)
+          else reject(new Error(`Failed to create page ${pageNum} image`))
+        }, 'image/jpeg', 0.9)
+      })
+
+      const pageFile = new File([blob], `${originalName}_page${pageNum}.jpg`, {
+        type: 'image/jpeg'
+      })
+
+      const preview = canvas.toDataURL('image/jpeg', 0.8)
+
+      console.log(`📄 Page ${pageNum} rendered successfully:`, {
+        fileSize: `${(pageFile.size / 1024).toFixed(2)} KB`,
+        dimensions: `${canvas.width}x${canvas.height}`
+      })
+
+      // Perform OCR on the rendered page
+      console.log(`🔍 Starting OCR on Page ${pageNum}...`)
+      const ocrResult = await performOCROnImage(pageFile)
+
+      console.log(`✅ Page ${pageNum} OCR Complete:`, {
+        textLength: ocrResult.text.length,
+        confidence: ocrResult.confidence.toFixed(2),
+        previewText: ocrResult.text.substring(0, 150) + (ocrResult.text.length > 150 ? '...' : '')
+      })
+
+      // Create page data with OCR results
+      const pageData: PdfPageData = {
+        pageNumber: pageNum,
+        imageFile: pageFile,
+        preview: preview,
+        ocrText: ocrResult.text,
+        ocrConfidence: ocrResult.confidence
+      }
+
+      pdfPages.push(pageData)
+
+      console.log(`📄 Page ${pageNum} Processing Complete:`, {
+        pageNumber: pageNum,
+        fileName: pageFile.name,
+        fileSize: `${(pageFile.size / 1024).toFixed(2)} KB`,
+        canvasSize: `${canvas.width}x${canvas.height}`,
+        ocrTextLength: ocrResult.text.length,
+        ocrConfidence: `${ocrResult.confidence.toFixed(2)}%`,
+        extractedTextPreview: ocrResult.text.substring(0, 200) + (ocrResult.text.length > 200 ? '...' : '')
+      })
+    }
+
+    console.log('✅ PDF Extraction & OCR Complete:', {
+      totalPagesProcessed: pdfPages.length,
+      totalSize: `${(pdfPages.reduce((sum, p) => sum + p.imageFile.size, 0) / 1024).toFixed(2)} KB`,
+      averageOCRConfidence: `${(pdfPages.reduce((sum, p) => sum + (p.ocrConfidence || 0), 0) / pdfPages.length).toFixed(2)}%`,
+      totalTextExtracted: pdfPages.reduce((sum, p) => sum + (p.ocrText?.length || 0), 0),
+      pageDetails: pdfPages.map(p => ({
+        page: p.pageNumber,
+        fileName: p.imageFile.name,
+        size: `${(p.imageFile.size / 1024).toFixed(2)} KB`,
+        ocrConfidence: `${(p.ocrConfidence || 0).toFixed(2)}%`,
+        textLength: p.ocrText?.length || 0
+      }))
+    })
+
+    return pdfPages
+  } catch (error) {
+    console.error('PDF conversion error:', error)
+    throw new Error('Failed to process PDF file. Please ensure the PDF is not corrupted.')
+  }
+}
+
+// Create a preview image for PDF (thumbnail of first page)
+const createPdfPreviewImage = async (file: File): Promise<File> => {
+  try {
+    const pages = await convertPdfToImages(file)
+    return pages[0]?.imageFile || file
+  } catch (error) {
+    console.error('Error creating PDF preview:', error)
+    throw error
+  }
+}// Dropzone event handlers
 const onDragEnter = (e: DragEvent) => {
   e.preventDefault()
   e.stopPropagation()
@@ -310,20 +510,47 @@ const handleFileSelect = (event: Event) => {
   }
 }
 
-const handleFileProcess = (file: File) => {
+const handleFileProcess = async (file: File) => {
   if (validateFile(file)) {
-    // Simulate upload progress (remove if not needed)
     isUploading.value = true
     uploadProgress.value = 0
 
-    const interval = setInterval(() => {
-      uploadProgress.value += 10
-      if (uploadProgress.value >= 100) {
-        clearInterval(interval)
-        isUploading.value = false
-        emit('imageUploaded', file)
+    try {
+      let processedFile = file
+
+      let pdfPages: PdfPageData[] = []
+
+      // Check if file is PDF and convert to individual page images
+      if (file.type === 'application/pdf') {
+        console.log('🚀 Starting PDF Processing Pipeline...', { fileName: file.name })
+        uploadProgress.value = 20
+        pdfPages = await convertPdfToImages(file)
+        console.log('📋 PDF Pages Data Ready for AI:', {
+          pageCount: pdfPages.length,
+          pages: pdfPages.map(p => `Page ${p.pageNumber}: ${p.imageFile.name}`)
+        })
+        uploadProgress.value = 60
+        processedFile = await createPdfPreviewImage(file)
+        uploadProgress.value = 80
       }
-    }, 100)
+
+      // Simulate remaining upload progress
+      const interval = setInterval(() => {
+        uploadProgress.value += 5
+        if (uploadProgress.value >= 100) {
+          clearInterval(interval)
+          isUploading.value = false
+          // Pass the original file if it's a PDF, and indicate it's a PDF with page data
+          const isPdf = file.type === 'application/pdf'
+          emit('imageUploaded', isPdf ? file : processedFile, isPdf, isPdf ? pdfPages : undefined)
+        }
+      }, 50)
+    } catch (error) {
+      isUploading.value = false
+      uploadProgress.value = 0
+      setError('Failed to process PDF file. Please try again or use an image file.')
+      console.error('File processing error:', error)
+    }
   }
 }
 

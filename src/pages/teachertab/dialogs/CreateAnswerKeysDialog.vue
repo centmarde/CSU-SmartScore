@@ -3,6 +3,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useAnswerKeysStore } from '@/stores/answerKeysData'
 import { useImageProcessor } from '@/pages/teachertab/composables/processImage'
 import { useToast } from 'vue-toastification'
+import { createGroqAIService } from '@/lib/aiBase'
 import ImageSourceSelection from '../dialogs/answerkey/ImageSourceSelection.vue'
 import ImageCaptureUpload from '../dialogs/answerkey/ImageCaptureUpload.vue'
 import AnswerKeyForm from '../dialogs/answerkey/AnswerKeyForm.vue'
@@ -61,6 +62,16 @@ const titleRules = [
 // File handling
 const imageFile = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
+const isPdfFile = ref(false)
+const pdfPages = ref<Array<{pageNumber: number, imageFile: File, preview: string}>>([])
+
+interface PdfPageData {
+  pageNumber: number
+  imageFile: File
+  preview: string
+  ocrText?: string
+  ocrConfidence?: number
+}
 
 // Camera related
 const showCamera = ref(false)
@@ -97,19 +108,308 @@ const selectImageSource = (source: 'upload' | 'camera') => {
 const retakePhoto = () => {
   imageFile.value = null
   imagePreview.value = null
+  isPdfFile.value = false
+  pdfPages.value = []
   currentStep.value = 1
   imageSource.value = null
   showCamera.value = false
 }
 
-const handleImageUploaded = (file: File) => {
+const handleImageUploaded = (file: File, isPdf: boolean = false, pdfPagesData?: PdfPageData[]) => {
   imageFile.value = file
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    imagePreview.value = e.target?.result as string
+  isPdfFile.value = isPdf
+
+  if (isPdf && pdfPagesData) {
+    console.log('📥 PDF Data Received in Dialog:', {
+      fileName: file.name,
+      isPdf,
+      pageCount: pdfPagesData.length,
+      pagesData: pdfPagesData.map(p => ({
+        pageNumber: p.pageNumber,
+        fileName: p.imageFile.name,
+        fileSize: `${(p.imageFile.size / 1024).toFixed(2)} KB`,
+        hasPreview: !!p.preview
+      }))
+    })
+
+    // Store PDF pages for AI processing
+    pdfPages.value = pdfPagesData
+    // Use the first page preview as the main preview
+    imagePreview.value = pdfPagesData[0]?.preview || createPdfPreview(file)
     nextStep()
+  } else if (isPdf) {
+    // Fallback for PDF without pages data
+    imagePreview.value = createPdfPreview(file)
+    nextStep()
+  } else {
+    // For regular images, create preview as usual
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      imagePreview.value = e.target?.result as string
+      nextStep()
+    }
+    reader.readAsDataURL(file)
   }
-  reader.readAsDataURL(file)
+}// Create a custom preview for PDF files
+const createPdfPreview = (file: File): string => {
+  // Return a data URL for a custom PDF icon/preview
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')!
+
+  canvas.width = 200
+  canvas.height = 250
+
+  // Draw PDF icon
+  ctx.fillStyle = '#f5f5f5'
+  ctx.fillRect(0, 0, 200, 250)
+
+  ctx.fillStyle = '#e74c3c'
+  ctx.fillRect(50, 50, 100, 120)
+
+  ctx.fillStyle = '#ffffff'
+  ctx.font = 'bold 20px Arial'
+  ctx.textAlign = 'center'
+  ctx.fillText('PDF', 100, 120)
+
+  ctx.fillStyle = '#333333'
+  ctx.font = '12px Arial'
+  ctx.fillText(file.name, 100, 200)
+  ctx.fillText(`${(file.size / 1024 / 1024).toFixed(1)} MB`, 100, 220)
+
+  return canvas.toDataURL('image/png')
+}
+
+// Process PDF pages with AI
+const processPdfPagesWithAI = async (pages: PdfPageData[]) => {
+  try {
+    console.log('🤖 Starting AI Processing for PDF Pages:', {
+      totalPages: pages.length,
+      pages: pages.map(p => ({
+        pageNumber: p.pageNumber,
+        fileName: p.imageFile.name,
+        fileSize: `${(p.imageFile.size / 1024).toFixed(2)} KB`
+      }))
+    })
+
+    const aiService = createGroqAIService()
+    console.log('🔧 AI Service Initialized:', { service: 'GroqAIService' })
+
+    const allQuestions: any[] = []
+    let totalQuestions = 0
+    let combinedMetadata = {
+      subject: 'Unknown',
+      difficulty: 'Unknown',
+      instructions: '',
+      total_questions: 0
+    }
+
+    submissionStatus.value = `Processing ${pages.length} PDF pages with AI...`
+
+    for (let i = 0; i < pages.length; i++) {
+      const page = pages[i]
+
+      // Update progress
+      const progress = ((i + 1) / pages.length) * 80 // 80% for processing, 20% for saving
+      submissionStatus.value = `Processing page ${i + 1} of ${pages.length}...`
+
+      try {
+        console.log(`🔄 Processing Page ${i + 1}:`, {
+          pageNumber: page.pageNumber,
+          fileName: page.imageFile.name,
+          fileSize: `${(page.imageFile.size / 1024).toFixed(2)} KB`
+        })
+
+        // Convert file to base64
+        const base64 = await fileToBase64(page.imageFile)
+        console.log(`📝 Base64 Conversion Complete for Page ${i + 1}:`, {
+          base64Length: base64.length,
+          base64Preview: base64.substring(0, 100) + '...'
+        })
+
+        // Process with AI using OCR text + vision
+        console.log(`🧠 Sending Page ${i + 1} to AI Service with OCR data...`, {
+          hasOCRText: !!(page.ocrText && page.ocrText.length > 0),
+          ocrTextLength: page.ocrText?.length || 0,
+          ocrConfidence: page.ocrConfidence || 0,
+          ocrTextPreview: page.ocrText?.substring(0, 200) + (page.ocrText && page.ocrText.length > 200 ? '...' : '') || 'No OCR text'
+        })
+
+        // Choose processing method based on OCR quality and availability
+        let result;
+        const ocrConfidence = page.ocrConfidence || 0;
+        const hasOCRText = page.ocrText && page.ocrText.length > 0;
+
+        if (hasOCRText && ocrConfidence > 85) {
+          // High confidence OCR - use text-only processing for better accuracy
+          console.log(`📝 Using text-only processing (OCR confidence: ${ocrConfidence.toFixed(2)}%)`)
+          result = await aiService.processTextOnly(page.ocrText!)
+        } else if (hasOCRText) {
+          // Medium confidence OCR - use vision + OCR combination
+          console.log(`👁️📝 Using vision + OCR processing (OCR confidence: ${ocrConfidence.toFixed(2)}%)`)
+          result = await aiService.processWithVision(page.ocrText!, base64)
+        } else {
+          // No OCR or low quality - fallback to vision only
+          console.log(`👁️ Using vision-only processing (no OCR data available)`)
+          result = await aiService.processImageOnly(base64)
+        }
+
+        // Log comprehensive AI analysis results
+        console.log(`✅ AI Processing Complete for Page ${i + 1}:`, {
+          processedWithOCR: !!(page.ocrText && page.ocrText.length > 0),
+          questionsFound: result.questions?.length || 0,
+          metadata: result.metadata,
+          textContent: result.questions?.map(q => q.question_text).join('\n'),
+          answerContent: result.questions?.map(q => `${q.question_number}: ${q.correct_answer}`).join(', '),
+          ocrDataUsed: {
+            textLength: page.ocrText?.length || 0,
+            confidence: page.ocrConfidence || 0,
+            textSample: page.ocrText?.substring(0, 150) || 'No OCR text available'
+          },
+          fullResult: result
+        })
+
+        // Log detailed content analysis
+        console.log(`📄 PDF Page ${i + 1} Content Analysis:`, {
+          pageNumber: i + 1,
+          fileName: page.imageFile.name,
+          rawAIResponse: result,
+          detectedQuestions: result.questions?.map(q => ({
+            questionNumber: q.question_number,
+            questionText: q.question_text || 'No text detected',
+            questionTextLength: (q.question_text || '').length,
+            correctAnswer: q.correct_answer,
+            answerType: q.answer_type,
+            options: q.options || [],
+            points: q.points || 1
+          })) || [],
+          detectedMetadata: {
+            subject: result.metadata?.subject || 'Unknown',
+            difficulty: result.metadata?.difficulty || 'Unknown',
+            instructions: result.metadata?.instructions || 'None detected',
+            totalQuestions: result.metadata?.total_questions || 0
+          },
+          contentSummary: {
+            hasQuestions: (result.questions?.length || 0) > 0,
+            hasMultipleChoice: result.questions?.some(q => q.answer_type === 'multiple_choice') || false,
+            hasTrueFalse: result.questions?.some(q => q.answer_type === 'true_false') || false,
+            hasFillBlank: result.questions?.some(q => q.answer_type === 'fill_blank') || false,
+            hasEssay: result.questions?.some(q => q.answer_type === 'essay') || false,
+            hasMatching: result.questions?.some(q => q.answer_type === 'matching') || false
+          }
+        })
+
+        if (result.questions && result.questions.length > 0) {
+          // Adjust question numbers to be sequential across pages
+          const adjustedQuestions = result.questions.map(q => ({
+            ...q,
+            question_number: q.question_number + totalQuestions
+          }))
+
+          console.log(`📊 Questions Processed for Page ${i + 1}:`, {
+            originalQuestions: result.questions.length,
+            adjustedQuestions: adjustedQuestions.map(q => ({
+              questionNumber: q.question_number,
+              questionText: q.question_text || 'No text detected',
+              correctAnswer: q.correct_answer,
+              answerType: q.answer_type,
+              options: q.options,
+              points: q.points
+            })),
+            runningTotal: totalQuestions + result.questions.length,
+            rawPageData: {
+              detectedText: result.questions.map(q => q.question_text).filter(Boolean),
+              answerPatterns: result.questions.map(q => `Q${q.question_number}: ${q.correct_answer} (${q.answer_type})`),
+              contentTypes: [...new Set(result.questions.map(q => q.answer_type))]
+            }
+          })
+
+          allQuestions.push(...adjustedQuestions)
+          totalQuestions += result.questions.length
+        }
+
+        // Use metadata from first page or update if more specific
+        if (i === 0 || (result.metadata?.subject && result.metadata.subject !== 'Unknown')) {
+          combinedMetadata = {
+            ...combinedMetadata,
+            ...result.metadata,
+            total_questions: totalQuestions
+          }
+        }
+
+      } catch (pageError) {
+        console.error(`❌ Error processing page ${i + 1}:`, {
+          pageNumber: page.pageNumber,
+          fileName: page.imageFile.name,
+          error: pageError
+        })
+        // Continue processing other pages
+      }
+    }
+
+    // Combine results
+    const combinedResult = {
+      answerKeyData: {
+        questions: allQuestions,
+        metadata: {
+          ...combinedMetadata,
+          total_questions: totalQuestions
+        }
+      },
+      processingTime: 0 // We'll set this as needed
+    }
+
+    console.log('🎉 PDF AI Processing Complete - Final Results:', {
+      totalPagesProcessed: pages.length,
+      totalQuestionsExtracted: totalQuestions,
+      finalMetadata: combinedResult.answerKeyData.metadata,
+      allQuestions: allQuestions.map(q => ({
+        questionNumber: q.question_number,
+        correctAnswer: q.correct_answer,
+        answerType: q.answer_type,
+        questionText: q.question_text
+      })),
+      combinedResult
+    })
+
+    return combinedResult  } catch (error) {
+    console.error('Error processing PDF pages with AI:', error)
+    throw error
+  }
+}
+
+// Convert File to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    console.log('🔄 Converting file to base64:', {
+      fileName: file.name,
+      fileSize: `${(file.size / 1024).toFixed(2)} KB`,
+      fileType: file.type
+    })
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = reader.result as string
+      // Remove data URL prefix to get just the base64
+      const base64 = result.split(',')[1]
+
+      console.log('✅ Base64 conversion complete:', {
+        fileName: file.name,
+        base64Length: base64.length,
+        base64Size: `${(base64.length * 0.75 / 1024).toFixed(2)} KB`, // Approximate size
+        base64Preview: base64.substring(0, 50) + '...'
+      })
+
+      resolve(base64)
+    }
+    reader.onerror = (error) => {
+      console.error('❌ Base64 conversion failed:', {
+        fileName: file.name,
+        error
+      })
+      reject(error)
+    }
+    reader.readAsDataURL(file)
+  })
 }
 
 const handleImageCaptured = (data: { file: File, preview: string }) => {
@@ -172,6 +472,8 @@ const resetForm = () => {
   }
   imageFile.value = null
   imagePreview.value = null
+  isPdfFile.value = false
+  pdfPages.value = []
   showCamera.value = false
   imageResult.value = null
   processingStep.value = null
@@ -195,9 +497,9 @@ const handleSubmit = async () => {
       }
     }
 
-    // Process image with AI if we have an image
+    // Process image with AI
     let processedAnswerKeys = null
-    if (imageFile.value) {
+    if (imageFile.value && !isPdfFile.value) {
       submissionStatus.value = 'Processing image with AI...'
       processingStep.value = 'ai'
 
@@ -226,6 +528,75 @@ const handleSubmit = async () => {
       } catch (aiError) {
         console.warn('AI processing failed, continuing without processed data:', aiError)
         // Continue with manual data entry
+      }
+    } else if (isPdfFile.value && pdfPages.value.length > 0) {
+      // For PDFs, process each page with AI
+      console.log('🚀 Starting PDF AI Processing Pipeline:', {
+        fileName: imageFile.value?.name,
+        totalPages: pdfPages.value.length,
+        pagesInfo: pdfPages.value.map(p => ({
+          pageNumber: p.pageNumber,
+          fileName: p.imageFile.name,
+          fileSize: `${(p.imageFile.size / 1024).toFixed(2)} KB`
+        }))
+      })
+
+      submissionStatus.value = 'Processing PDF pages with AI...'
+      processingStep.value = 'ai'
+
+      try {
+        const result = await processPdfPagesWithAI(pdfPages.value)
+
+        console.log('💾 Storing PDF AI Results:', {
+          questionsExtracted: result.answerKeyData?.questions?.length || 0,
+          metadata: result.answerKeyData?.metadata,
+          processingComplete: true
+        })
+
+        // Store the results
+        imageResult.value = result
+        processedAnswerKeys = result.answerKeyData
+
+        // Auto-populate title if we found questions and user hasn't set one
+        if (!formData.value.title && result.answerKeyData?.metadata?.total_questions) {
+          const questionCount = result.answerKeyData.metadata.total_questions
+          const subject = result.answerKeyData.metadata.subject !== 'Unknown'
+            ? ` - ${result.answerKeyData.metadata.subject}`
+            : ''
+          formData.value.title = `PDF Answer Key${subject} (${questionCount} Questions)`
+
+          console.log('🏷️ Auto-populated Title from PDF AI Results:', {
+            title: formData.value.title,
+            questionCount,
+            subject
+          })
+        }
+
+        // Auto-populate description if user hasn't set one
+        if (!formData.value.description) {
+          const pageCount = pdfPages.value.length
+          const questionCount = result.answerKeyData?.metadata?.total_questions || 0
+          formData.value.description = `Answer key extracted from ${pageCount} PDF pages with ${questionCount} questions detected`
+        }
+
+      } catch (aiError) {
+        console.warn('AI processing of PDF failed, continuing without processed data:', aiError)
+        // Provide default info for PDFs
+        if (!formData.value.title) {
+          formData.value.title = `Answer Key - ${imageFile.value?.name.replace('.pdf', '') || 'PDF Document'}`
+        }
+        if (!formData.value.description) {
+          formData.value.description = `Answer key created from ${pdfPages.value.length} PDF pages`
+        }
+      }
+    } else if (isPdfFile.value) {
+      // Fallback for PDFs without extracted pages
+      submissionStatus.value = 'Processing PDF file...'
+      if (!formData.value.title) {
+        formData.value.title = `Answer Key - ${imageFile.value?.name.replace('.pdf', '') || 'PDF Document'}`
+      }
+      if (!formData.value.description) {
+        formData.value.description = 'Answer key created from PDF document'
       }
     }
 
@@ -329,7 +700,7 @@ onUnmounted(() => {
                   color="success"
                   prepend-icon="mdi-brain"
                 >
-                  AI Vision Analysis
+                  {{ isPdfFile ? 'Processing PDF' : 'AI Vision Analysis' }}
                 </v-chip>
                 <v-chip
                   v-else-if="processingStep === 'saving'"
@@ -342,7 +713,7 @@ onUnmounted(() => {
               </div>
 
               <!-- AI Streaming Content Preview -->
-              <div v-if="imageStreamingContent && processingStep === 'ai'" class="mt-4">
+              <div v-if="imageStreamingContent && processingStep === 'ai' && !isPdfFile" class="mt-4">
                 <v-card variant="outlined" class="pa-3">
                   <div class="text-caption text-medium-emphasis mb-2">
                     <v-icon size="small" class="me-1">mdi-lightning-bolt</v-icon>
@@ -384,6 +755,8 @@ onUnmounted(() => {
           :image-preview="imagePreview"
           :image-file-name="imageFile?.name || null"
           :image-result="imageResult"
+          :is-pdf-file="isPdfFile"
+          :pdf-pages-count="pdfPages.length"
           @edit-image="retakePhoto"
           @submit="handleSubmit"
         />
@@ -416,7 +789,7 @@ onUnmounted(() => {
           :loading="loading"
           :disabled="!formData.title"
         >
-          {{ imageFile ? 'Process with AI & Create Answer Key' : 'Create Answer Key' }}
+          {{ imageFile && !isPdfFile ? 'Process with AI & Create Answer Key' : 'Create Answer Key' }}
         </v-btn>
       </v-card-actions>
     </v-card>
