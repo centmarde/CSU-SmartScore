@@ -49,9 +49,16 @@
                 class="me-3"
               />
               <div class="flex-grow-1">
-                <div class="text-body-2">Answer Sheet Image</div>
+                <div class="text-body-2">
+                  {{ isPdfFile ? 'PDF Document' : 'Answer Sheet Image' }}
+                  <v-chip v-if="isPdfFile" size="x-small" color="red" class="ml-2">PDF</v-chip>
+                </div>
                 <div class="text-caption text-medium-emphasis">
                   {{ imageFileName || 'Captured Image' }}
+                  <span v-if="isPdfFile && pdfPagesCount"> - {{ pdfPagesCount || 0 }} pages</span>
+                </div>
+                <div v-if="isPdfFile" class="text-caption text-success">
+                  PDF pages will be processed individually with AI
                 </div>
               </div>
               <v-btn
@@ -61,6 +68,28 @@
                 @click="$emit('editImage')"
               />
             </div>
+          </v-card>
+        </v-col>
+
+        <!-- PDF Pages Preview (if PDF) -->
+        <v-col v-if="isPdfFile && (pdfPagesCount || 0) > 0" cols="12">
+          <v-card variant="outlined" class="pa-2">
+            <v-card-title class="text-subtitle-2 d-flex align-center">
+              <v-icon class="me-2" color="red">mdi-file-pdf-box</v-icon>
+              PDF Document Preview
+              <v-spacer />
+              <v-chip size="small" color="red" variant="outlined">
+                {{ pdfPagesCount || 0 }} pages
+              </v-chip>
+            </v-card-title>
+            <v-card-text>
+              <div class="text-body-2 mb-2">
+                Each page will be processed individually with AI to extract answer key data.
+              </div>
+              <div class="text-caption text-medium-emphasis">
+                Processing time may vary based on the number of pages and content complexity.
+              </div>
+            </v-card-text>
           </v-card>
         </v-col>
 
@@ -180,6 +209,8 @@ interface Props {
   imagePreview: string | null
   imageFileName: string | null
   imageResult?: any
+  isPdfFile?: boolean
+  pdfPagesCount?: number
 }
 
 interface Emits {

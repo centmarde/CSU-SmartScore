@@ -17,7 +17,7 @@
           :class="{ 'bg-primary-lighten-5': selectedSource === 'upload' }"
         >
           <v-icon size="48" color="primary" class="mb-3">mdi-upload</v-icon>
-          <div class="text-h6 mb-2">Upload Image</div>
+          <div class="text-h6 mb-2">Upload File or Image</div>
           <div class="text-body-2 text-medium-emphasis">
             Select an image file from your device
           </div>

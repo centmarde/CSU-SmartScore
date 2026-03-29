@@ -38,6 +38,14 @@ export class GroqAIService {
   async processImageOnly(imageBase64: string): Promise<AnswerKeyData> {
     const prompt = this.createVisionOnlyPrompt();
 
+    console.log('🚀 Starting AI Vision Analysis:', {
+      imageBase64Length: imageBase64.length,
+      imageSize: `~${(imageBase64.length * 0.75 / 1024).toFixed(2)} KB`,
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      promptLength: prompt.length,
+      promptContent: prompt
+    });
+
     try {
       const chatCompletion = await this.groq.chat.completions.create({
         messages: [
@@ -66,6 +74,17 @@ export class GroqAIService {
       });
 
       const content = chatCompletion.choices[0]?.message?.content || '';
+
+      // Log the raw AI response for comprehensive content analysis
+      console.log('🤖 Complete AI Vision Response:', {
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        contentLength: content.length,
+        rawContent: content,
+        usage: chatCompletion.usage,
+        finishReason: chatCompletion.choices[0]?.finish_reason,
+        timestamp: new Date().toISOString()
+      });
+
       return this.parseResponse(content);
     } catch (error) {
       console.error('Error with vision-only processing:', error);
@@ -117,7 +136,47 @@ export class GroqAIService {
     }
   }
 
+  /**
+   * Process OCR text only (without image) using text model
+   * @param ocrText - OCR extracted text from PDF/image
+   * @returns Structured answer key data
+   */
+  async processTextOnly(ocrText: string): Promise<AnswerKeyData> {
+    const prompt = this.createTextOnlyPrompt(ocrText);
 
+    console.log('🔤 Starting OCR Text Analysis:', {
+      textLength: ocrText.length,
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      promptLength: prompt.length,
+      textPreview: ocrText.substring(0, 300) + (ocrText.length > 300 ? '...' : '')
+    });
+
+    try {
+      const chatCompletion = await this.groq.chat.completions.create({
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        temperature: 0.1,
+        max_tokens: 4000,
+        top_p: 0.95
+      });
+
+      const response = chatCompletion.choices[0]?.message?.content;
+      console.log('🤖 Raw OCR Text Analysis Response:', {
+        responseLength: response?.length || 0,
+        rawResponse: response
+      });
+
+      return this.parseResponse(response || '');
+    } catch (error) {
+      console.error('Error with text-only processing:', error);
+      throw new Error(`Text processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 
   /**
    * Create prompt for vision model processing with OCR text
@@ -199,25 +258,99 @@ Guidelines:
 - Return valid JSON only, no additional text or explanations`;
   }
 
+  /**
+   * Create prompt for text-only processing using OCR extracted text
+   */
+  private createTextOnlyPrompt(ocrText: string): string {
+    return `You are an expert educational assessment analyzer. I have extracted text from an answer key document using OCR.
 
+OCR Extracted Text:
+${ocrText}
+
+Please analyze this text and extract the answer key information. Return a JSON object with the following structure:
+
+{
+  "questions": [
+    {
+      "question_number": 1,
+      "question_text": "Optional question text if clearly visible",
+      "correct_answer": "A",
+      "answer_type": "multiple_choice",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "points": 1
+    }
+  ],
+  "metadata": {
+    "total_questions": 10,
+    "subject": "Optional subject if identifiable",
+    "difficulty": "Optional difficulty level",
+    "instructions": "Any special instructions found"
+  }
+}
+
+Guidelines:
+- Parse all text carefully to identify answer patterns
+- Extract question numbers and their corresponding correct answers
+- Determine answer types: multiple_choice, true_false, fill_blank, essay, matching
+- Look for patterns like "1. A", "Question 1: B", "1) True", etc.
+- Include question text if present in the OCR text
+- For multiple choice, extract all available options if listed
+- Handle OCR errors and inconsistencies gracefully
+- Look for headers, titles, or labels that indicate this is an answer key
+- Count total questions based on parsed content
+- Return valid JSON only, no additional text or explanations`;
+  }
 
   /**
    * Parse AI response into structured data
    */
   private parseResponse(content: string): AnswerKeyData {
+    console.log('🔍 Parsing AI Response:', {
+      contentLength: content.length,
+      rawContent: content
+    });
+
     try {
       // Clean the response to extract JSON
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
+        console.error('❌ No JSON found in AI response:', {
+          content,
+          contentPreview: content.substring(0, 500) + '...'
+        });
         throw new Error('No JSON found in response');
       }
 
+      console.log('📝 JSON extracted from AI response:', {
+        jsonString: jsonMatch[0],
+        jsonLength: jsonMatch[0].length
+      });
+
       const parsedData = JSON.parse(jsonMatch[0]);
 
+      console.log('✅ Successfully parsed JSON from AI:', {
+        parsedData,
+        questionsFound: parsedData.questions?.length || 0,
+        metadata: parsedData.metadata
+      });
+
       // Validate and sanitize the response
-      return this.validateAndSanitizeData(parsedData);
+      const sanitizedData = this.validateAndSanitizeData(parsedData);
+
+      console.log('🔧 Data validation and sanitization complete:', {
+        originalQuestions: parsedData.questions?.length || 0,
+        sanitizedQuestions: sanitizedData.questions.length,
+        sanitizedData
+      });
+
+      return sanitizedData;
     } catch (error) {
-      console.error('Error parsing AI response:', error);
+      console.error('❌ Error parsing AI response:', {
+        error,
+        content,
+        contentType: typeof content,
+        contentPreview: content.substring(0, 1000)
+      });
       // Return basic structure if parsing fails
       return {
         questions: [],
