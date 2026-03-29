@@ -28,6 +28,8 @@ interface Props {
       correctAnswer: string;
       isCorrect: boolean;
       points: number;
+      confidence?: number;
+      explanation?: string;
     }>;
   };
 }
@@ -244,28 +246,47 @@ watch(
                 </template>
 
                 <v-list-item-title>
-                  <div class="d-flex align-center justify-space-between">
-                    <span class="text-body-1"
-                      >Question {{ comparison.questionNumber }}</span
+                  <div class="d-flex flex-column">
+                    <div class="d-flex align-center justify-space-between mb-2">
+                      <span class="text-body-1"
+                        >Question {{ comparison.questionNumber }}</span
+                      >
+                      <div class="d-flex gap-2">
+                        <v-chip
+                          class="mx-2"
+                          :color="comparison.isCorrect ? 'success' : 'error'"
+                          size="small"
+                          variant="outlined"
+                        >
+                          Your Answer:
+                          {{ comparison.studentAnswer || "No Answer" }}
+                        </v-chip>
+                        <v-chip
+                          class="mx-2"
+                          v-if="!isQuizActive"
+                          color="primary"
+                          size="small"
+                          variant="tonal"
+                        >
+                          Correct: {{ comparison.correctAnswer }}
+                        </v-chip>
+                      </div>
+                    </div>
+
+                    <!-- AI Explanation (if available and quiz is not active) -->
+                    <div
+                      v-if="comparison.explanation && !isQuizActive"
+                      class="text-caption text-medium-emphasis mt-1 ml-2"
                     >
-                    <div class="d-flex gap-2">
+                      <v-icon size="x-small" class="mr-1">mdi-robot</v-icon>
+                      {{ comparison.explanation }}
                       <v-chip
-                        class="mx-2"
-                        :color="comparison.isCorrect ? 'success' : 'error'"
-                        size="small"
-                        variant="outlined"
+                        v-if="comparison.confidence !== undefined"
+                        size="x-small"
+                        variant="text"
+                        class="ml-2"
                       >
-                        Your Answer:
-                        {{ comparison.studentAnswer || "No Answer" }}
-                      </v-chip>
-                      <v-chip
-                        class="mx-2"
-                        v-if="!isQuizActive"
-                        color="primary"
-                        size="small"
-                        variant="tonal"
-                      >
-                        Correct: {{ comparison.correctAnswer }}
+                        Confidence: {{ Math.round(comparison.confidence * 100) }}%
                       </v-chip>
                     </div>
                   </div>

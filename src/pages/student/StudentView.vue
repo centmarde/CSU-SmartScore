@@ -142,9 +142,9 @@ const handleAnswersSubmit = async (finalAnswers: any) => {
       console.warn('Image upload failed:', uploadError);
     }
 
-    // Grade the student answers by comparing with answer key
-    console.log('🧮 Grading student submission...');
-    const gradingResult = studentQuizStore.gradeStudentSubmission(
+    // Grade the student answers by comparing with answer key using AI synonym checking
+    console.log('🧮 Grading student submission with AI synonym checking...');
+    const gradingResult = await studentQuizStore.gradeStudentSubmission(
       finalAnswers.answers,
       parseInt(quizId.value)
     );

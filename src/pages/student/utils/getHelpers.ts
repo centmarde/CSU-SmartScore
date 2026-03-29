@@ -1,4 +1,5 @@
 import type { Ref } from 'vue';
+import { createGroqSynonymService } from '@/lib/aiSynonym';
 
 // Camera and media helper functions
 
@@ -222,11 +223,19 @@ export const getCorrectAnswerForQuestion = (
   questionNumber: string | number,
   answerKeyData: any
 ): string => {
-  if (!answerKeyData?.answer_keys) return 'N/A';
+  if (!answerKeyData?.answer_keys?.questions) return 'N/A';
 
   try {
-    // Implementation depends on answer key data structure
-    // This is a placeholder that should be implemented based on actual data structure
+    const qNum = typeof questionNumber === 'string' ? parseInt(questionNumber) : questionNumber;
+    const questions = answerKeyData.answer_keys.questions;
+
+    // Find the question by question_number
+    const question = questions.find((q: any) => q.question_number === qNum);
+
+    if (question && question.correct_answer) {
+      return question.correct_answer.toString();
+    }
+
     return 'N/A';
   } catch (error) {
     console.error('Error getting correct answer:', error);
@@ -265,7 +274,8 @@ export const getQuizTitle = (answerKeyId: number | null, answerKeys: any[]): str
 };
 
 /**
- * Check if student answer is correct
+ * Check if student answer is correct (exact match only)
+ * For synonym checking, use isAnswerCorrectWithAI instead
  */
 export const isAnswerCorrect = (
   studentAnswer: string,
@@ -276,6 +286,125 @@ export const isAnswerCorrect = (
   if (correctAnswer === 'N/A') return false;
 
   return studentAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
+};
+
+/**
+ * Check if student answer is correct using AI synonym checking
+ * This will recognize related answers like 'cleaning', 'sanitizing', 'scrubbing' as correct
+ */
+export const isAnswerCorrectWithAI = async (
+  studentAnswer: string,
+  questionNumber: string | number,
+  answerKeyData: any
+): Promise<{ isCorrect: boolean; confidence: number; explanation: string }> => {
+  const correctAnswer = getCorrectAnswerForQuestion(questionNumber, answerKeyData);
+
+  if (correctAnswer === 'N/A') {
+    return { isCorrect: false, confidence: 0, explanation: 'No correct answer available' };
+  }
+
+  // First check for exact match
+  if (studentAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim()) {
+    return { isCorrect: true, confidence: 1.0, explanation: 'Exact match' };
+  }
+
+  // Check if both are single letters (multiple choice A, B, C, D)
+  const isMultipleChoice = /^[A-D]$/i.test(studentAnswer.trim()) && /^[A-D]$/i.test(correctAnswer.trim());
+  if (isMultipleChoice) {
+    // For multiple choice, require exact match
+    return { isCorrect: false, confidence: 1.0, explanation: 'Different multiple choice option' };
+  }
+
+  // Use AI synonym checking for text-based answers
+  try {
+    const synonymService = createGroqSynonymService();
+    const result = await synonymService.checkSynonym(studentAnswer, correctAnswer);
+
+    return {
+      isCorrect: result.areEquivalent,
+      confidence: result.confidence,
+      explanation: result.explanation
+    };
+  } catch (error) {
+    console.error('Error checking answer with AI:', error);
+    // Fallback to exact match on error
+    return { isCorrect: false, confidence: 0, explanation: 'AI checking failed, answers do not match exactly' };
+  }
+};
+
+/**
+ * Batch check multiple answers using AI synonym checking
+ * More efficient than calling isAnswerCorrectWithAI multiple times
+ */
+export const batchCheckAnswersWithAI = async (
+  answerPairs: Array<{
+    questionNumber: number;
+    studentAnswer: string;
+    correctAnswer: string;
+  }>
+): Promise<Map<number, { isCorrect: boolean; confidence: number; explanation: string }>> => {
+  const results = new Map<number, { isCorrect: boolean; confidence: number; explanation: string }>();
+
+  // Separate multiple choice from text answers
+  const textAnswerPairs: typeof answerPairs = [];
+
+  answerPairs.forEach(pair => {
+    // Check for exact match first
+    if (pair.studentAnswer.toLowerCase().trim() === pair.correctAnswer.toLowerCase().trim()) {
+      results.set(pair.questionNumber, {
+        isCorrect: true,
+        confidence: 1.0,
+        explanation: 'Exact match'
+      });
+      return;
+    }
+
+    // Check if it's multiple choice
+    const isMultipleChoice = /^[A-D]$/i.test(pair.studentAnswer.trim()) &&
+                            /^[A-D]$/i.test(pair.correctAnswer.trim());
+
+    if (isMultipleChoice) {
+      results.set(pair.questionNumber, {
+        isCorrect: false,
+        confidence: 1.0,
+        explanation: 'Different multiple choice option'
+      });
+      return;
+    }
+
+    // Add to text answers for AI checking
+    textAnswerPairs.push(pair);
+  });
+
+  // If there are text answers, use AI batch checking
+  if (textAnswerPairs.length > 0) {
+    try {
+      const synonymService = createGroqSynonymService();
+      const aiResults = await synonymService.checkBatchSynonyms(textAnswerPairs);
+
+      aiResults.comparisons.forEach(comparison => {
+        results.set(comparison.questionNumber, {
+          isCorrect: comparison.areEquivalent,
+          confidence: comparison.confidence,
+          explanation: comparison.explanation
+        });
+      });
+    } catch (error) {
+      console.error('Error in batch AI checking:', error);
+      // Add failed results for remaining questions
+      textAnswerPairs.forEach(pair => {
+        if (!results.has(pair.questionNumber)) {
+          results.set(pair.questionNumber, {
+            isCorrect: false,
+            confidence: 0,
+            explanation: 'AI checking failed, answers do not match exactly'
+          });
+        }
+      });
+    }
+  }
+
+  return results;
 };
 
 // File handling helper functions
