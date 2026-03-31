@@ -166,7 +166,8 @@ const resetForm = () => {
   loginForm.email = "";
   loginForm.password = "";
   clearErrors();
-  formRef.value?.resetValidation();
+  formValid.value = false;
+  formRef.value?.reset();
 };
 
 // Expose methods for parent component
