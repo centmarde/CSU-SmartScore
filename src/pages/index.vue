@@ -2,8 +2,10 @@
   import { onMounted } from 'vue'
   import { useLandingController } from '@/controller/landingController'
   import OuterLayoutWrapper from '@/layouts/OuterLayoutWrapper.vue'
+  import { useDisplay } from 'vuetify'
 
   const { data, loading, error, fetchLandingData } = useLandingController()
+  const { mobile } = useDisplay()
 
   onMounted(async () => {
     await fetchLandingData()
@@ -70,189 +72,231 @@
         <div v-else-if="data">
           <!-- Hero Section -->
           <section class="hero-section">
-            <v-container>
-              <v-row align="center" class="min-height-screen" justify="center">
-                <v-col cols="12" lg="8" md="10">
-                  <div class="text-center">
-                    <h1 class="text-h2 text-md-h3 font-weight-bold mb-4">
-                      {{ data.title }}
-                    </h1>
+            <div class="hero-container" :class="{ 'mobile-layout': mobile }">
+              <div class="hero-wrapper" :class="{ 'mobile-wrapper': mobile }">
+                <!-- Mobile Layout: Content only, no image -->
+                <template v-if="mobile">
+                  <!-- Content Side (Centered on mobile) -->
+                  <div class="hero-content-side mobile-content">
+                    <div class="hero-content mobile-content-inner">
+                      <h1 class="hero-title mobile-title">
+                        {{ data.title }}
+                      </h1>
 
-                    <h2 class="text-h4 text-md-h4 text-grey-darken-1 mb-6">
-                      {{ data.subtitle }}
-                    </h2>
+                      <h2 class="hero-subtitle mobile-subtitle">
+                        {{ data.subtitle }}
+                      </h2>
 
-                    <p class="text-h6 text-md-h6 text-grey-darken-2 mb-8">
-                      {{ data.description }}
-                    </p>
+                      <p class="hero-description mobile-description">
+                        {{ data.description }}
+                      </p>
 
-                    <div
-                      class="d-flex flex-column flex-sm-row gap-4 justify-center"
-                    >
-                      <v-btn
-                        class="text-none"
-                        color="primary"
-                        size="x-large"
-                        variant="elevated"
-                        @click="scrollToFeatures"
+                      <div class="hero-buttons mobile-buttons">
+                        <v-btn
+                          class="text-none hero-btn-primary"
+                          color="primary"
+                          size="large"
+                          variant="elevated"
+                          block
+                          @click="scrollToFeatures"
+                        >
+                          <v-icon class="me-2" icon="mdi-rocket-launch" />
+                          Explore Features
+                        </v-btn>
+
+                        <v-btn
+                          class="text-none hero-btn-secondary"
+                          color="white"
+                          size="large"
+                          variant="outlined"
+                          block
+                          @click="openGithub"
+                        >
+                          <v-icon class="me-2" icon="mdi-github" />
+                          View Source
+                        </v-btn>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- Desktop Layout: Content left, image right -->
+                <template v-else>
+                  <!-- Content Side (Left) -->
+                  <div class="hero-content-side">
+                    <div class="hero-content">
+                      <h1 class="hero-title">
+                        {{ data.title }}
+                      </h1>
+
+                      <h2 class="hero-subtitle">
+                        {{ data.subtitle }}
+                      </h2>
+
+                      <p class="hero-description">
+                        {{ data.description }}
+                      </p>
+
+                      <div class="hero-buttons">
+                        <v-btn
+                          class="text-none hero-btn-primary"
+                          color="primary"
+                          size="large"
+                          variant="elevated"
+                          @click="scrollToFeatures"
+                        >
+                          <v-icon class="me-2" icon="mdi-rocket-launch" />
+                          Explore Features
+                        </v-btn>
+
+                        <v-btn
+                          class="text-none hero-btn-secondary"
+                          color="white"
+                          size="large"
+                          variant="outlined"
+                          @click="openGithub"
+                        >
+                          <v-icon class="me-2" icon="mdi-github" />
+                          View Source
+                        </v-btn>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Image Side (Right) -->
+                  <div class="hero-image-side">
+                    <div class="hero-image-container">
+                      <v-img
+                        src="/assets/hero.jpg"
+                        alt="CSU-SmartScore Professional"
+                        class="hero-image"
+                        cover
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Diagonal Overlay -->
+                  <div class="hero-diagonal-overlay"></div>
+                </template>
+              </div>
+            </div>
+          </section>
+
+          <!-- Features and About Section -->
+          <section id="features" class="features-about-section py-16">
+            <v-container fluid>
+              <!-- Section Header -->
+              <div class="text-center mb-12">
+                <h2 class="text-h2 font-weight-bold mb-6">
+                  <span class="gradient-text">Discover</span> What Makes Us Different
+                </h2>
+                <p class="text-h6 text-grey-darken-1 max-width-800 mx-auto">
+                  Advanced AI technology meets educational excellence in our comprehensive platform
+                </p>
+              </div>
+
+              <!-- Creative Grid Layout -->
+              <v-row class="creative-grid align-stretch" no-gutters>
+                <!-- Large About Card - Left Side -->
+                <v-col cols="12" lg="6" md="6" id="about" class="pa-3">
+                  <v-card
+                    class="about-hero-card h-100 position-relative overflow-hidden d-flex flex-column"
+                    elevation="8"
+                    hover
+                  >
+                    <!-- Background Pattern -->
+                    <div class="card-bg-pattern"></div>
+
+                    <v-card-text class="pa-8 position-relative flex-grow-1 d-flex flex-column">
+                      <div class="d-flex align-center mb-6">
+                        <v-avatar class="me-4" color="primary" size="64">
+                          <v-icon color="on-primary" icon="mdi-brain" size="32" />
+                        </v-avatar>
+                        <div>
+                          <h3 class="text-h4 font-weight-bold">
+                            CSU-SmartScore
+                          </h3>
+                          <p class="text-subtitle-1 text-primary font-weight-medium mb-0">
+                            AI-Powered Education Revolution
+                          </p>
+                        </div>
+                      </div>
+
+                      <p class="text-body-1 text-grey-darken-2 mb-6 line-height-1-8 flex-grow-1">
+                        CSU-SmartScore transforms the traditional grading process by leveraging advanced
+                        artificial intelligence to analyze handwritten quiz answers. Our system provides
+                        instant, accurate feedback to students while empowering teachers with powerful
+                        oversight and analytics tools.
+                      </p>
+
+                      <div class="info-grid mb-6">
+                        <div class="info-item">
+                          <v-icon class="info-icon" color="success" icon="mdi-check-circle" />
+                          <div class="info-content">
+                            <span class="info-label">Version</span>
+                            <span class="info-value">{{ data.version }}</span>
+                          </div>
+                        </div>
+                        <div class="info-item">
+                          <v-icon class="info-icon" color="info" icon="mdi-account-group" />
+                          <div class="info-content">
+                            <span class="info-label">Developed by</span>
+                            <span class="info-value">{{ data.author }}</span>
+                          </div>
+                        </div>
+                        <div class="info-item">
+                          <v-icon class="info-icon" color="warning" icon="mdi-calendar-clock" />
+                          <div class="info-content">
+                            <span class="info-label">Last updated</span>
+                            <span class="info-value">{{ formatDate(data.lastUpdated) }}</span>
+                          </div>
+                        </div>
+                      </div>
+
+
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+
+                <!-- Features Grid - Right Side -->
+                <v-col cols="12" lg="6" md="6" class="pa-3">
+                  <div class="features-container h-100 d-flex flex-column">
+
+
+                    <!-- Even Feature Grid -->
+                    <div class="feature-grid flex-grow-1">
+                      <v-card
+                        v-for="(feature, index) in data.features"
+                        :key="index"
+                        class="feature-card h-100"
+                        :class="`feature-card-${index}`"
+                        elevation="4"
+                        hover
                       >
-                        <v-icon class="me-2" icon="mdi-rocket-launch" />
-                        Explore Features
-                      </v-btn>
-
-                      <v-btn
-                        class="text-none"
-                        color="primary"
-                        size="x-large"
-                        variant="outlined"
-                        @click="openGithub"
-                      >
-                        <v-icon class="me-2" icon="mdi-github" />
-                        View Source
-                      </v-btn>
+                        <v-card-text class="pa-6 text-center h-100 d-flex flex-column">
+                          <v-avatar class="mb-4" color="primary" size="56">
+                            <v-icon color="on-primary" :icon="feature.icon" size="28" />
+                          </v-avatar>
+                          <h4 class="text-h6 font-weight-bold mb-3">
+                            {{ feature.title }}
+                          </h4>
+                          <p class="text-body-2 text-grey-darken-3 flex-grow-1 d-flex align-center">
+                            {{ feature.description }}
+                          </p>
+                        </v-card-text>
+                      </v-card>
                     </div>
                   </div>
                 </v-col>
               </v-row>
             </v-container>
           </section>
-
-          <!-- Features Section -->
-          <section id="features" class="features-section py-16">
-            <v-container>
-              <div class="text-center mb-12">
-                <h2 class="text-h3 font-weight-bold mb-4">Key Features</h2>
-                <p class="text-h6 text-grey-darken-1">
-                  Advanced AI technology for intelligent quiz scoring and assessment
-                </p>
-              </div>
-
-              <v-row>
-                <v-col
-                  v-for="(feature, index) in data.features"
-                  :key="index"
-                  cols="12"
-                  lg="3"
-                  md="6"
-                >
-                  <v-card class="h-100" elevation="2" hover>
-                    <v-card-text class="text-center pa-6">
-                      <v-avatar class="mb-4" color="primary" size="64">
-                        <v-icon color="on-primary" :icon="feature.icon" size="32" />
-                      </v-avatar>
-
-                      <h3 class="text-h5 font-weight-bold mb-3">
-                        {{ feature.title }}
-                      </h3>
-
-                      <p class="text-body-1 text-grey-darken-3">
-                        {{ feature.description }}
-                      </p>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
-            </v-container>
-          </section>
-
-          <!-- About Section -->
-          <section id="about" class="about-section py-16 ">
-            <v-container>
-              <v-row align="center" justify="center">
-                <v-col cols="12" lg="10" md="12">
-                  <div class="text-center">
-                    <h2 class="text-h3 font-weight-bold mb-6">
-                      About CSU-SmartScore
-                    </h2>
-
-                    <v-card class="pa-8" elevation="4">
-                      <v-row align="center">
-                        <v-col cols="12" md="8">
-                          <div class="text-start">
-                            <h3 class="text-h4 font-weight-bold mb-4">
-                              <v-icon class="me-2" color="primary" icon="mdi-brain" />
-                              AI-Powered Education Revolution
-                            </h3>
-                            <p class="text-body-1 text-grey-darken-2 mb-4">
-                              CSU-SmartScore transforms the traditional grading process by leveraging advanced
-                              artificial intelligence to analyze handwritten quiz answers. Our system provides
-                              instant, accurate feedback to students while empowering teachers with powerful
-                              oversight and analytics tools.
-                            </p>
-                            <div class="d-flex align-center mb-2">
-                              <v-icon class="me-2" color="success" icon="mdi-check-circle" size="20" />
-                              <span class="text-body-2">Version {{ data.version }}</span>
-                            </div>
-                            <div class="d-flex align-center mb-2">
-                              <v-icon class="me-2" color="info" icon="mdi-account-group" size="20" />
-                              <span class="text-body-2">Developed by {{ data.author }}</span>
-                            </div>
-                            <div class="d-flex align-center">
-                              <v-icon class="me-2" color="warning" icon="mdi-calendar-clock" size="20" />
-                              <span class="text-body-2">Last updated: {{ formatDate(data.lastUpdated) }}</span>
-                            </div>
-                          </div>
-                        </v-col>
-
-                        <v-col cols="12" md="4">
-                          <div class="d-flex flex-column ga-3">
-                            <v-btn
-                              block
-                              class="text-none"
-                              color="primary"
-                              size="large"
-                              variant="elevated"
-                              @click="openDocumentation"
-                            >
-                              <v-icon class="me-2" icon="mdi-book-open-variant" />
-                              User Guide
-                            </v-btn>
-
-                            <v-btn
-                              block
-                              class="text-none"
-                              color="secondary"
-                              size="large"
-                              variant="outlined"
-                              @click="openGithub"
-                            >
-                              <v-icon class="me-2" icon="mdi-github" />
-                              Source Code
-                            </v-btn>
-                          </div>
-                        </v-col>
-                      </v-row>
-                    </v-card>
-                  </div>
-                </v-col>
-              </v-row>
-            </v-container>
-          </section>
+					<div class="mt-5">
+						<div style="height: 35vh;"></div>
+					</div>
         </div>
       </div>
     </template>
   </OuterLayoutWrapper>
 </template>
 
-<style scoped>
-
-.min-height-screen {
-  min-height: calc(100vh - 64px);
-}
-
-/* .features-section {
-  background: white;
-} */
-
-/* .about-section {
-  background: #fafafa;
-} */
-
-.gap-4 {
-  gap: 1rem;
-}
-
-.landing-view {
-  min-height: 100vh;
-}
-</style>
