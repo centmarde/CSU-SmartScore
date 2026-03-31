@@ -18,7 +18,7 @@
       :config="data?.ui"
     />
 
-    <v-main>
+    <v-main class="pa-0">
       <slot name="content"></slot>
     </v-main>
 
@@ -52,5 +52,16 @@
 </script>
 
 <style scoped>
-  /* Layout-specific styles can be added here */
+  /* Remove default v-main padding for floating navbar */
+  :deep(.v-main) {
+    padding-top: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Ensure content starts from the very top */
+  :deep(.v-main__wrap) {
+    padding-top: 0 !important;
+  }
 </style>

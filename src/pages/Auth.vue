@@ -2,24 +2,21 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useTheme } from "vuetify";
 import LoginForm from "@/components/auth/LoginForm.vue";
 import RegisterForm from "@/components/auth/RegisterForm.vue";
 import { useAuthUserStore } from "@/stores/authUser";
-import { createDynamicThemeConfigFromExternal } from "@/themes/index";
+import { useTheme } from "@/composables/useTheme";
 import { useAuthPageController } from "@/controller/authPageController";
 
 // Composables
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthUserStore();
-const theme = useTheme();
+const { isThemeLoaded, themeLoadError, isLoadingTheme, initializeTheme } = useTheme();
 const { data: authPageData, loading: authPageLoading, error: authPageError, fetchAuthPageData } = useAuthPageController();
 
 // Reactive state
 const isLoginMode = ref(true);
-const themeLoading = ref(true);
-const themeError = ref<string | null>(null);
 
 // Computed properties for layout
 const isQuoteOnLeft = computed(() => {
@@ -59,34 +56,13 @@ const navigateHome = () => {
   router.push("/");
 };
 
-// Load dynamic theme configuration
-const loadDynamicTheme = async () => {
-  try {
-    themeLoading.value = true;
-    themeError.value = null;
-
-    const themeConfig = await createDynamicThemeConfigFromExternal();
-
-    // Apply the theme configuration to Vuetify
-    theme.themes.value.light = themeConfig.themes.light;
-    theme.themes.value.dark = themeConfig.themes.dark;
-
-    console.log('Dynamic theme loaded successfully');
-  } catch (error) {
-    console.error('Failed to load dynamic theme:', error);
-    themeError.value = error instanceof Error ? error.message : 'Failed to load theme';
-  } finally {
-    themeLoading.value = false;
-  }
-};
-
 // Lifecycle
 onMounted(async () => {
   // Load auth page data first
   await fetchAuthPageData();
 
-  // Load dynamic theme configuration
-  await loadDynamicTheme();
+  // Initialize dynamic theme configuration
+  await initializeTheme();
 
   // Set initial mode based on query parameter
   const mode = route.query.mode;
@@ -103,156 +79,123 @@ onMounted(async () => {
 
 
 <template>
-
   <!-- Theme Loading State -->
-  <v-overlay v-if="themeLoading || authPageLoading" class="d-flex align-center justify-center">
-    <v-progress-circular
-      indeterminate
-      size="64"
-      color="primary"
-    />
-    <div class="text-h6 ml-4">
-      {{ themeLoading ? 'Loading theme...' : 'Loading page data...' }}
+  <v-overlay
+    v-if="isLoadingTheme || authPageLoading"
+    class="auth-loading-overlay d-flex align-center justify-center"
+  >
+    <div class="auth-loading-content">
+      <v-progress-circular
+        indeterminate
+        size="64"
+        color="white"
+      />
+      <div class="text-h6 mt-4">
+        {{ isLoadingTheme ? 'Loading theme...' : 'Loading page data...' }}
+      </div>
     </div>
   </v-overlay>
 
   <!-- Error State -->
   <v-alert
-    v-if="(themeError || authPageError) && !themeLoading && !authPageLoading"
+    v-if="(themeLoadError || authPageError) && !isLoadingTheme && !authPageLoading"
     type="error"
-    class="ma-4"
+    class="auth-error-alert"
     closable
-    @click:close="themeError = null"
   >
     <v-alert-title>Loading Error</v-alert-title>
-    {{ themeError || authPageError }}
+    {{ themeLoadError || authPageError }}
   </v-alert>
 
-  <!-- Main Content -->
-  <v-row v-if="!themeLoading && !authPageLoading && authPageData" class="fill-height" align="center" no-gutters>
-    <!-- Form Section -->
-
-    <v-col
-      cols="12"
-      lg="5"
-      class="bg-primary d-flex align-center justify-center fill-height"
-      :order="formSectionOrder"
+  <!-- Main Content with Diagonal Design -->
+  <div v-if="!isLoadingTheme && !authPageLoading && authPageData" class="auth-container">
+    <div class="auth-wrapper"
+         :class="{ 'auth-mobile-wrapper': $vuetify.display.mobile }"
     >
+      <!-- Back to Home Button -->
+      <v-btn
+        class="auth-back-btn"
+        variant="text"
+        size="small"
+        @click="navigateHome"
+      >
+        <v-icon start size="small">mdi-arrow-left</v-icon>
+        Back to Home
+      </v-btn>
 
-      <div class="w-100" style="max-width: 500px">
-         <!-- Back to Home Button (static) -->
-            <v-btn
-              variant="text"
-              color="light"
-              size="small"
-              class="ma-2"
-              @click="navigateHome"
-            >
-              <v-icon start size="small">mdi-arrow-left</v-icon>
-              Back to Home
-            </v-btn>
-        <!-- Auth Form Container -->
-        <v-fade-transition mode="out-in">
-          <div v-if="isLoginMode" key="login">
-            <LoginForm @switch-to-register="switchToRegister" />
-          </div>
-          <div v-else key="register">
-            <RegisterForm @switch-to-login="switchToLogin" />
-          </div>
-        </v-fade-transition>
+      <!-- Form Section (Left Side with Diagonal) -->
+      <div class="auth-form-section"
+           :class="{ 'auth-mobile-form': $vuetify.display.mobile }"
+      >
+        <div class="auth-form-container">
+          <!-- Auth Form Card -->
+          <v-card class="auth-form-card" elevation="12">
+            <v-card-text class="pa-6">
+              <!-- Auth Form Container -->
+              <transition name="auth-fade" mode="out-in">
+                <div v-if="isLoginMode" key="login">
+                  <LoginForm @switch-to-register="switchToRegister" />
+                </div>
+                <div v-else key="register">
+                  <RegisterForm @switch-to-login="switchToLogin" />
+                </div>
+              </transition>
+            </v-card-text>
+          </v-card>
 
-        <!-- Additional Options -->
-        <v-card class="mt-4" variant="text">
-          <v-card-text class="text-center">
-            <v-divider class="mb-4" />
+          <!-- Toggle Mode Section -->
+          <div class="auth-social-container mt-4">
+            <div class="text-center">
+              <v-divider class="mb-4" color="white" opacity="0.3" />
 
-            <div class="text-body-2 text-medium-emphasis mb-2">
-              Or continue with
+              <!-- Toggle Mode Button -->
+              <v-btn
+                class="auth-toggle-btn"
+                size="small"
+                block
+                @click="toggleMode"
+              >
+                <v-icon start>mdi-swap-horizontal</v-icon>
+                Switch to {{ isLoginMode ? "Register" : "Login" }}
+              </v-btn>
             </div>
-
-            <!-- Social Login Options (static) -->
-            <v-row no-gutters justify="center">
-              <v-col cols="auto">
-                <v-btn
-                  variant="outlined"
-                  color="light"
-                  size="small"
-                  disabled
-                  class="mx-1"
-                >
-                  <v-icon start>mdi-google</v-icon>
-                  Google
-                </v-btn>
-              </v-col>
-              <v-col cols="auto">
-                <v-btn
-                  variant="outlined"
-                  color="light"
-                  size="small"
-                  disabled
-                  class="mx-1"
-                >
-                  <v-icon start>mdi-github</v-icon>
-                  GitHub
-                </v-btn>
-              </v-col>
-            </v-row>
-
-                <div class="text-caption text-medium-emphasis mt-2">
-              Social login coming soon
-            </div>
-          </v-card-text>
-        </v-card>
-
-        <!-- Toggle Mode Button (static) -->
-        <v-card class="mx-auto mt-2" variant="text">
-          <v-card-actions class="justify-center">
-
-            <v-btn
-              variant="text"
-              color="light"
-              size="small"
-              @click="toggleMode"
-            >
-              <v-icon start>mdi-swap-horizontal</v-icon>
-              Switch to {{ isLoginMode ? "Register" : "Login" }}
-            </v-btn>
-
-          </v-card-actions>
-
-        </v-card>
+          </div>
+        </div>
       </div>
 
-    </v-col>
+      <!-- Quote Section (Right Side) -->
+      <div class="auth-quote-section"
+           :class="{ 'auth-mobile-quote': $vuetify.display.mobile }"
+      >
+        <div class="auth-quote-container">
+          <v-card class="auth-quote-card">
+            <v-card-text class="text-center ms-10 ps-10">
+              <v-icon
+                size="64"
+                color="primary"
+                class="auth-quote-icon"
+              >
+                mdi-format-quote-open
+              </v-icon>
 
-    <!-- Quote Section -->
-    <v-col
-      cols="12"
-      lg="7"
-      class="d-none d-lg-flex align-center justify-center fill-height"
-      :order="quoteSectionOrder"
-    >
-      <v-card-text class="text-center">
-        <v-icon size="48" color="primary" class="mb-4 d-flex justify-start">
-          mdi-format-quote-open
-        </v-icon>
+              <div class="auth-quote-text">
+                {{ authPageData.quote.text }}
+              </div>
 
-        <div class="text-h4 font-weight-light mb-6 text-primary">
-          {{ authPageData.quote.text }}
+              <div class="auth-quote-author">
+                — {{ authPageData.quote.author }}
+                <span v-if="authPageData.quote.source" class="text-caption">
+                  ({{ authPageData.quote.source }})
+                </span>
+              </div>
+
+              <div v-if="authPageData.quote.motivationalText" class="auth-quote-motivational">
+                {{ authPageData.quote.motivationalText }}
+              </div>
+            </v-card-text>
+          </v-card>
         </div>
-
-        <div class="text-h6 text-primary opacity-75">
-          — {{ authPageData.quote.author }}
-          <span v-if="authPageData.quote.source" class="text-caption">
-            ({{ authPageData.quote.source }})
-          </span>
-        </div>
-
-        <div v-if="authPageData.quote.motivationalText" class="text-body-1 text-primary opacity-75">
-          {{ authPageData.quote.motivationalText }}
-        </div>
-      </v-card-text>
-
-    </v-col>
-  </v-row>
+      </div>
+    </div>
+  </div>
 </template>
