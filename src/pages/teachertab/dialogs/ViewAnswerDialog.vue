@@ -32,6 +32,8 @@ const saving = ref(false)
 const numberOfQuestions = ref(10)
 const individualAnswers = ref<{ [key: number]: string }>({})
 const showFullImageDialog = ref(false)
+const selectedAnswers = ref<Set<number>>(new Set())
+const bulkDeleteMode = ref(false)
 const answerKeyData = ref<AnswerKeyData>({
   questions: [],
   metadata: {
@@ -206,6 +208,43 @@ const updateNumberOfQuestions = (newCount: string | number) => {
 const clearAllAnswers = () => {
   individualAnswers.value = {}
 }
+
+const removeAnswer = (questionNumber: number) => {
+  delete individualAnswers.value[questionNumber]
+  parseIndividualAnswers()
+}
+
+const toggleBulkMode = () => {
+  bulkDeleteMode.value = !bulkDeleteMode.value
+  if (!bulkDeleteMode.value) {
+    selectedAnswers.value.clear()
+  }
+}
+
+const toggleAnswerSelection = (questionNum: number) => {
+  if (selectedAnswers.value.has(questionNum)) {
+    selectedAnswers.value.delete(questionNum)
+  } else {
+    selectedAnswers.value.add(questionNum)
+  }
+}
+
+const selectAllAnswers = () => {
+  selectedAnswers.value.clear()
+  Object.keys(individualAnswers.value).forEach(key => {
+    if (individualAnswers.value[parseInt(key)]) {
+      selectedAnswers.value.add(parseInt(key))
+    }
+  })
+}
+
+const removeSelectedAnswers = () => {
+  selectedAnswers.value.forEach(questionNum => {
+    delete individualAnswers.value[questionNum]
+  })
+  selectedAnswers.value.clear()
+  parseIndividualAnswers()
+}
 </script>
 
 <template>
@@ -334,8 +373,41 @@ const clearAllAnswers = () => {
                       persistent-hint
                     />
                   </v-col>
-                  <v-col cols="12" md="6" class="d-flex gap-2">
+                  <v-col cols="12" md="6" class="d-flex gap-2 flex-wrap">
                     <v-btn
+                      color="primary"
+                      variant="outlined"
+                      :prepend-icon="bulkDeleteMode ? 'mdi-close' : 'mdi-checkbox-multiple-marked'"
+                      @click="toggleBulkMode"
+                      size="small"
+                    >
+                      {{ bulkDeleteMode ? 'Cancel' : 'Bulk Edit' }}
+                    </v-btn>
+                    
+                    <template v-if="bulkDeleteMode">
+                      <v-btn
+                        color="info"
+                        variant="outlined"
+                        prepend-icon="mdi-select-all"
+                        @click="selectAllAnswers"
+                        size="small"
+                      >
+                        Select All
+                      </v-btn>
+                      <v-btn
+                        color="error"
+                        variant="outlined"
+                        prepend-icon="mdi-delete"
+                        @click="removeSelectedAnswers"
+                        :disabled="selectedAnswers.size === 0"
+                        size="small"
+                      >
+                        Remove ({{ selectedAnswers.size }})
+                      </v-btn>
+                    </template>
+                    
+                    <v-btn
+                      v-if="!bulkDeleteMode"
                       color="warning"
                       variant="outlined"
                       prepend-icon="mdi-delete-sweep"
@@ -370,6 +442,17 @@ const clearAllAnswers = () => {
                     >
                       <template v-slot:prepend-inner>
                         <span class="question-number">{{ questionNum }}.</span>
+                      </template>
+                      <template v-slot:append>
+                        <v-btn
+                          v-if="individualAnswers[questionNum]"
+                          icon="mdi-delete"
+                          variant="text"
+                          color="error"
+                          size="small"
+                          @click="removeAnswer(questionNum)"
+                          class="delete-btn"
+                        />
                       </template>
                     </v-text-field>
                   </v-col>
@@ -508,5 +591,14 @@ const clearAllAnswers = () => {
 
 .gap-2 {
   gap: 8px;
+}
+
+.delete-btn {
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.delete-btn:hover {
+  opacity: 1;
 }
 </style>

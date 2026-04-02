@@ -222,7 +222,7 @@
                         </div>
                       </div>
 
-                      <p class="text-body-1 text-grey-darken-2 mb-6 line-height-1-8 flex-grow-1">
+                      <p class="text-body-1  mb-6 line-height-1-8 flex-grow-1">
                         CSU-SmartScore transforms the traditional grading process by leveraging advanced
                         artificial intelligence to analyze handwritten quiz answers. Our system provides
                         instant, accurate feedback to students while empowering teachers with powerful
@@ -280,7 +280,7 @@
                           <h4 class="text-h6 font-weight-bold mb-3">
                             {{ feature.title }}
                           </h4>
-                          <p class="text-body-2 text-grey-darken-3 flex-grow-1 d-flex align-center">
+                          <p class="text-body-2  flex-grow-1 d-flex align-center">
                             {{ feature.description }}
                           </p>
                         </v-card-text>

@@ -31,6 +31,8 @@ const vuetify = createVuetify({
           // Temporary minimal theme - will be replaced by dynamic loading
           primary: '#2196F3',
           secondary: '#616161',
+          surface: '#2B304E',
+          background: '#2B304E',
         },
       },
     },
