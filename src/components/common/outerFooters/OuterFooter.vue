@@ -3,7 +3,7 @@
     v-if="config?.showFooter && footerConfig"
     app
     class="text-white"
-    :color="footerConfig.color"
+    color="surface-light"
   >
     <v-container>
       <v-row align="center" justify="space-between">

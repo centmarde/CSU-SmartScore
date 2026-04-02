@@ -36,8 +36,8 @@
   "author": "CSU Development Team",
   "lastUpdated": "2026-03-19",
   "theme": {
-    "primaryColor": "#F77F00",
-    "secondaryColor": "#f45b26"
+    "primaryColor": "##F7AF75",
+    "secondaryColor": "#EEEEEE"
   },
   "ui": {
     "showNavbar": true,

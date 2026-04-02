@@ -161,11 +161,11 @@ export function createDarkTheme (primaryColor: string, secondaryColor: string) {
       'accent-lighten-1': adjustColor(primaryColor, 0.5),
 
       // Dark mode backgrounds
-      'background': '#121212',
-      'surface': '#1E1E1E',
-      'surface-bright': '#2D2D2D',
-      'surface-light': '#2A2A2A',
-      'surface-variant': '#424242',
+      'background': '#2B304E',
+      'surface': '#2B304E',
+      'surface-bright': adjustColor('#2B304E', 0.2),
+      'surface-light': adjustColor('#2B304E', 0.1),
+      'surface-variant': adjustColor('#2B304E', -0.1),
       'on-surface-variant': adjustColor(primaryColor, 0.4),
 
       // Dark mode text colors
