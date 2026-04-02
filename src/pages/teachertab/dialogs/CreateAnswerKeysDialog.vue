@@ -239,14 +239,41 @@ const processPdfPagesWithAI = async (pages: PdfPageData[]) => {
         const ocrConfidence = page.ocrConfidence || 0;
         const hasOCRText = page.ocrText && page.ocrText.length > 0;
 
+        // Clean OCR text to remove headers, footers, and page artifacts
+        let cleanedOCRText = page.ocrText || '';
+        if (hasOCRText) {
+          // Remove common page artifacts and repeated elements
+          cleanedOCRText = cleanedOCRText
+            .replace(/page\s+\d+\s+of\s+\d+/gi, '') // Remove "Page X of Y"
+            .replace(/^.*?answer\s+key.*?$/gim, '') // Remove "Answer Key" headers
+            .replace(/^.*?name:.*?$/gim, '') // Remove "Name:" fields
+            .replace(/^.*?date:.*?$/gim, '') // Remove "Date:" fields  
+            .replace(/^.*?class:.*?$/gim, '') // Remove "Class:" fields
+            .replace(/^\s*\d+\s*$|^\s*[A-Z]\s*$/gim, '') // Remove isolated numbers/letters
+            .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean multiple newlines
+            .trim()
+
+          // Skip pages with minimal content (likely headers/footers only)
+          if (cleanedOCRText.length < 50) {
+            console.log(`⏭️ Skipping page ${i + 1} - minimal content after cleaning (${cleanedOCRText.length} chars)`)
+            continue
+          }
+        }
+
+        // Provide context about previously extracted questions to avoid duplicates
+        const previousAnswers = allQuestions.map(q => q.correct_answer).join(', ')
+        const contextPrompt = allQuestions.length > 0 
+          ? `Previously extracted answers from other pages: [${previousAnswers}]. Only extract NEW questions not already found.`
+          : ''
+
         if (hasOCRText && ocrConfidence > 85) {
           // High confidence OCR - use text-only processing for better accuracy
           console.log(`📝 Using text-only processing (OCR confidence: ${ocrConfidence.toFixed(2)}%)`)
-          result = await aiService.processTextOnly(page.ocrText!)
+          result = await aiService.processTextOnly(cleanedOCRText + '\n\n' + contextPrompt)
         } else if (hasOCRText) {
           // Medium confidence OCR - use vision + OCR combination
           console.log(`👁️📝 Using vision + OCR processing (OCR confidence: ${ocrConfidence.toFixed(2)}%)`)
-          result = await aiService.processWithVision(page.ocrText!, base64)
+          result = await aiService.processWithVision(cleanedOCRText + '\n\n' + contextPrompt, base64)
         } else {
           // No OCR or low quality - fallback to vision only
           console.log(`👁️ Using vision-only processing (no OCR data available)`)
@@ -299,14 +326,43 @@ const processPdfPagesWithAI = async (pages: PdfPageData[]) => {
         })
 
         if (result.questions && result.questions.length > 0) {
-          // Adjust question numbers to be sequential across pages
-          const adjustedQuestions = result.questions.map(q => ({
+          // Filter out duplicate questions based on question text similarity and answer matching
+          const newQuestions = result.questions.filter(newQ => {
+            // Check if this question already exists in allQuestions
+            const isDuplicate = allQuestions.some(existingQ => {
+              // Compare answers (most reliable indicator)
+              const sameAnswer = existingQ.correct_answer?.toLowerCase().trim() === newQ.correct_answer?.toLowerCase().trim()
+              
+              // Compare question text if available (fuzzy matching)
+              let similarText = false
+              if (existingQ.question_text && newQ.question_text) {
+                const existingText = existingQ.question_text.toLowerCase().replace(/\s+/g, ' ').trim()
+                const newText = newQ.question_text.toLowerCase().replace(/\s+/g, ' ').trim()
+                // Check for exact match or significant overlap (>80% similarity)
+                similarText = existingText === newText || 
+                             (existingText.includes(newText) && newText.length > existingText.length * 0.8) ||
+                             (newText.includes(existingText) && existingText.length > newText.length * 0.8)
+              }
+              
+              // Question is duplicate if same answer AND (same question text OR similar question numbers)
+              const sameQuestionNumber = Math.abs(existingQ.question_number - newQ.question_number) <= 1
+              
+              return sameAnswer && (similarText || (!existingQ.question_text && !newQ.question_text && sameQuestionNumber))
+            })
+            
+            return !isDuplicate
+          })
+
+          // Adjust question numbers to be sequential across pages for non-duplicate questions
+          const adjustedQuestions = newQuestions.map(q => ({
             ...q,
             question_number: q.question_number + totalQuestions
           }))
 
           console.log(`📊 Questions Processed for Page ${i + 1}:`, {
             originalQuestions: result.questions.length,
+            duplicatesFiltered: result.questions.length - newQuestions.length,
+            uniqueQuestions: newQuestions.length,
             adjustedQuestions: adjustedQuestions.map(q => ({
               questionNumber: q.question_number,
               questionText: q.question_text || 'No text detected',
@@ -315,7 +371,7 @@ const processPdfPagesWithAI = async (pages: PdfPageData[]) => {
               options: q.options,
               points: q.points
             })),
-            runningTotal: totalQuestions + result.questions.length,
+            runningTotal: totalQuestions + newQuestions.length,
             rawPageData: {
               detectedText: result.questions.map(q => q.question_text).filter(Boolean),
               answerPatterns: result.questions.map(q => `Q${q.question_number}: ${q.correct_answer} (${q.answer_type})`),
@@ -323,8 +379,10 @@ const processPdfPagesWithAI = async (pages: PdfPageData[]) => {
             }
           })
 
-          allQuestions.push(...adjustedQuestions)
-          totalQuestions += result.questions.length
+          if (adjustedQuestions.length > 0) {
+            allQuestions.push(...adjustedQuestions)
+            totalQuestions += adjustedQuestions.length
+          }
         }
 
         // Use metadata from first page or update if more specific
@@ -786,8 +844,8 @@ onUnmounted(() => {
           v-if="currentStep === 3"
           color="primary"
           @click="handleSubmit"
-          :loading="loading"
-          :disabled="!formData.title"
+          :loading="loading || !!processingStep"
+          :disabled="!formData.title || loading || !!processingStep"
         >
           {{ imageFile && !isPdfFile ? 'Process with AI & Create Answer Key' : 'Create Answer Key' }}
         </v-btn>
