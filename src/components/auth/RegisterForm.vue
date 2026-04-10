@@ -187,10 +187,12 @@ const registerForm = reactive({
 
 // Computed properties for role options
 const roleOptions = computed(() => {
-  return rolesStore.roles.map(role => ({
-    title: role.title || 'Untitled Role',
-    value: role.id
-  }));
+  return rolesStore.roles
+    .filter(role => role.id !== 1) // Exclude admin role (ID 1)
+    .map(role => ({
+      title: role.title || 'Untitled Role',
+      value: role.id
+    }));
 });
 
 // Error handling
