@@ -1,6 +1,18 @@
 {
   "versions": [
     {
+      "version": "v0.0.3",
+      "date": "2026-04-22",
+      "title": "Student UI: Mobile UX + Answer Sheet Guidance",
+      "changes": [
+        "Added a pre-upload reminders dialog with photo/format tips and sample images",
+        "Added fullscreen sample viewer (Recommended / Not recommended), including carousel/slider for examples",
+        "Improved AI answer extraction reliability for handwritten sheets (better JSON handling, MIME detection, OCR fallback)",
+        "Fixed Student view mobile scroll/layout issues and ensured the footer no longer covers page content",
+        "Made the footer compact on mobile by reducing spacing and collapsing the team section"
+      ]
+    },
+    {
       "version": "v0.0.2",
       "date": "2026-02-10",
       "title": "Core Functionality Updates",

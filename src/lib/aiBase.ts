@@ -23,6 +23,9 @@ interface AnswerKeyData {
 export class GroqAIService {
   private groq: Groq;
 
+  // Keep responses deterministic and easier to parse.
+  private static readonly DEFAULT_TEMPERATURE = 0.1;
+
   constructor(apiKey: string) {
     this.groq = new Groq({
       apiKey: apiKey,
@@ -38,6 +41,9 @@ export class GroqAIService {
   async processImageOnly(imageBase64: string): Promise<AnswerKeyData> {
     const prompt = this.createVisionOnlyPrompt();
 
+  // The UI allows multiple formats; don't hardcode JPEG.
+  const mimeType = this.detectMimeTypeFromBase64(imageBase64) ?? 'image/jpeg';
+
     console.log('🚀 Starting AI Vision Analysis:', {
       imageBase64Length: imageBase64.length,
       imageSize: `~${(imageBase64.length * 0.75 / 1024).toFixed(2)} KB`,
@@ -50,6 +56,10 @@ export class GroqAIService {
       const chatCompletion = await this.groq.chat.completions.create({
         messages: [
           {
+            role: 'system',
+            content: this.createJsonOnlySystemPrompt()
+          },
+          {
             role: 'user',
             content: [
               {
@@ -59,18 +69,24 @@ export class GroqAIService {
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`
+                  url: `data:${mimeType};base64,${imageBase64}`
                 }
               }
             ]
           }
         ],
         model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Use vision model for image processing
-        temperature: 0.1, // Lower temperature for more consistent results
+        temperature: GroqAIService.DEFAULT_TEMPERATURE, // Lower temperature for more consistent results
         max_completion_tokens: 2048,
         top_p: 1,
         stream: false,
-        stop: null
+        stop: null,
+
+        // If supported by the provider/model, this nudges the model into valid JSON.
+        // It's safe to include—unknown fields are typically ignored.
+        response_format: {
+          type: 'json_object'
+        } as any
       });
 
       const content = chatCompletion.choices[0]?.message?.content || '';
@@ -85,7 +101,19 @@ export class GroqAIService {
         timestamp: new Date().toISOString()
       });
 
-      return this.parseResponse(content);
+      const parsed = this.parseResponse(content);
+
+      // If the vision-only extraction returns 0 questions on handwritten sheets,
+      // try an OCR-assisted pass. This is common with faint pencil/pen strokes.
+      if (!parsed.questions?.length) {
+        console.warn('⚠️ Vision-only returned no questions; attempting OCR-assisted fallback...');
+        const ocrText = await this.extractOcrTextFromBase64(imageBase64);
+        if (ocrText.trim().length) {
+          return await this.processWithVision(ocrText, imageBase64);
+        }
+      }
+
+      return parsed;
     } catch (error) {
       console.error('Error with vision-only processing:', error);
       throw new Error(`Vision processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -101,9 +129,15 @@ export class GroqAIService {
   async processWithVision(ocrText: string, imageBase64: string): Promise<AnswerKeyData> {
     const prompt = this.createVisionPrompt(ocrText);
 
+  const mimeType = this.detectMimeTypeFromBase64(imageBase64) ?? 'image/jpeg';
+
     try {
       const chatCompletion = await this.groq.chat.completions.create({
         messages: [
+          {
+            role: 'system',
+            content: this.createJsonOnlySystemPrompt()
+          },
           {
             role: 'user',
             content: [
@@ -114,18 +148,21 @@ export class GroqAIService {
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`
+                  url: `data:${mimeType};base64,${imageBase64}`
                 }
               }
             ]
           }
         ],
         model: 'meta-llama/llama-4-scout-17b-16e-instruct', // Updated vision model for OCR
-        temperature: 0.3,
+        temperature: GroqAIService.DEFAULT_TEMPERATURE,
         max_completion_tokens: 2048,
         top_p: 1,
         stream: false,
-        stop: null
+        stop: null,
+        response_format: {
+          type: 'json_object'
+        } as any
       });
 
       const content = chatCompletion.choices[0]?.message?.content || '';
@@ -155,14 +192,21 @@ export class GroqAIService {
       const chatCompletion = await this.groq.chat.completions.create({
         messages: [
           {
+            role: 'system',
+            content: this.createJsonOnlySystemPrompt()
+          },
+          {
             role: 'user',
             content: prompt
           }
         ],
         model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        temperature: 0.1,
+        temperature: GroqAIService.DEFAULT_TEMPERATURE,
         max_tokens: 4000,
-        top_p: 0.95
+        top_p: 0.95,
+        response_format: {
+          type: 'json_object'
+        } as any
       });
 
       const response = chatCompletion.choices[0]?.message?.content;
@@ -223,7 +267,9 @@ Guidelines:
    * Create prompt for vision-only model processing (without OCR text)
    */
   private createVisionOnlyPrompt(): string {
-    return `You are an expert educational assessment analyzer. I have an answer key image that needs to be analyzed.
+  return `You are an expert educational assessment analyzer. I have an answer key image that needs to be analyzed.
+
+This image may contain HANDWRITTEN short answers (words, numbers, units). The layout may be a simple numbered list (e.g., "1. Photosynthesis").
 
 Please carefully examine this image and extract all answer key information. Return a JSON object with the following structure:
 
@@ -251,7 +297,9 @@ Guidelines:
 - Extract question numbers and their corresponding correct answers
 - Determine answer types: multiple_choice, true_false, fill_blank, essay, matching
 - Include question text if clearly readable
-- For multiple choice, extract all visible options
+- For handwritten short-answer keys (most common), use answer_type "fill_blank" and put the written response in correct_answer
+- For numbers/units (e.g., "300m", "0°C"), preserve symbols and units exactly
+- For crossed-out text, use the final written value if a replacement is clearly written
 - Provide accurate question count based on what you can see
 - Look for patterns that indicate answer keys (circles, letters, checkmarks)
 - Pay attention to headers, titles, or labels that might indicate this is an answer key
@@ -311,8 +359,15 @@ Guidelines:
     });
 
     try {
-      // Clean the response to extract JSON
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      // 1) Try to parse as-is.
+      const direct = this.tryParseJson(content);
+      if (direct) {
+        const sanitizedData = this.validateAndSanitizeData(direct);
+        return sanitizedData;
+      }
+
+      // 2) Extract first JSON object.
+      const jsonMatch = this.extractFirstJsonObject(content);
       if (!jsonMatch) {
         console.error('❌ No JSON found in AI response:', {
           content,
@@ -326,7 +381,8 @@ Guidelines:
         jsonLength: jsonMatch[0].length
       });
 
-      const parsedData = JSON.parse(jsonMatch[0]);
+  const repaired = this.repairCommonJsonIssues(jsonMatch);
+  const parsedData = JSON.parse(repaired);
 
       console.log('✅ Successfully parsed JSON from AI:', {
         parsedData,
@@ -403,6 +459,81 @@ Guidelines:
     ];
 
     return validTypes.includes(type as any) ? type as any : 'multiple_choice';
+  }
+
+  /**
+   * Some responses include markdown fences, trailing commas, or other minor issues.
+   * These helpers make parsing more resilient.
+   */
+  private tryParseJson(text: string): any | null {
+    const cleaned = text
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/i, '');
+
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      return null;
+    }
+  }
+
+  private extractFirstJsonObject(text: string): string | null {
+    const match = text.match(/\{[\s\S]*\}/);
+    return match?.[0] ?? null;
+  }
+
+  private repairCommonJsonIssues(jsonLike: string): string {
+    // Remove trailing commas before } or ]
+    return jsonLike
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/\u0000/g, '')
+      .trim();
+  }
+
+  private createJsonOnlySystemPrompt(): string {
+    return [
+      'You are a careful extraction engine.',
+      'Return ONLY a single valid JSON object and nothing else.',
+      'Do not wrap it in markdown fences.',
+      'Use double quotes for all keys and string values.',
+      'If a field is unknown, use an empty string or omit optional fields.',
+    ].join(' ');
+  }
+
+  /**
+   * Detect common image MIME types from base64 payload.
+   */
+  private detectMimeTypeFromBase64(base64: string): string | null {
+    const head = base64.slice(0, 16);
+    // JPEG: /9j/
+    if (head.startsWith('/9j/')) return 'image/jpeg';
+    // PNG: iVBORw0KGgo
+    if (head.startsWith('iVBORw0KGgo')) return 'image/png';
+    // GIF: R0lGOD
+    if (head.startsWith('R0lGOD')) return 'image/gif';
+    // WEBP: UklGR
+    if (head.startsWith('UklGR')) return 'image/webp';
+    return null;
+  }
+
+  /**
+   * Lightweight OCR fallback using Tesseract.js already in the project.
+   */
+  private async extractOcrTextFromBase64(imageBase64: string): Promise<string> {
+    try {
+      const { createWorker } = await import('tesseract.js');
+      const mimeType = this.detectMimeTypeFromBase64(imageBase64) ?? 'image/jpeg';
+      const worker = await createWorker('eng');
+      const {
+        data: { text }
+      } = await worker.recognize(`data:${mimeType};base64,${imageBase64}`);
+      await worker.terminate();
+      return (text ?? '').toString();
+    } catch (e) {
+      console.warn('OCR fallback failed:', e);
+      return '';
+    }
   }
 
 
