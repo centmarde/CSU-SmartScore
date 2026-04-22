@@ -18,7 +18,7 @@
       :config="data?.ui"
     />
 
-    <v-main class="pa-0">
+    <v-main class="pa-0" :class="isMobile ? 'outer-main-mobile' : 'outer-main-desktop'">
       <slot name="content"></slot>
     </v-main>
 
@@ -36,6 +36,8 @@
 
 <script lang="ts" setup>
   import { onMounted } from 'vue'
+  import { computed } from 'vue'
+  import { useDisplay } from 'vuetify'
   import OuterFooter from '@/components/common/outerFooters/OuterFooter.vue'
   import OuterFooter2 from '@/components/common/outerFooters/OuterFooter2.vue'
   import OuterNavbar from '@/components/common/outerNavbars/OuterNavbar1.vue'
@@ -45,6 +47,9 @@
   import { useLandingController } from '@/controller/landingController'
 
   const { data, fetchLandingData } = useLandingController()
+
+  const { mobile } = useDisplay()
+  const isMobile = computed(() => mobile.value)
 
   onMounted(async () => {
     await fetchLandingData()
@@ -57,7 +62,9 @@
     padding-top: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
-    padding-bottom: 0 !important;
+    /* IMPORTANT: don't override bottom padding here.
+       `v-footer app` already participates in Vuetify's layout and reserves space.
+       Forcing extra padding can cause strange overlap/scroll behavior on mobile. */
   }
 
   /* Ensure content starts from the very top */

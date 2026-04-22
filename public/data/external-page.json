@@ -33,10 +33,10 @@
       "icon": "mdi-clipboard-check"
     }
   ],
-  "author": "CSU Development Team",
+  "author": "Jean and Cathy",
   "lastUpdated": "2026-03-19",
   "theme": {
-    "primaryColor": "##F7AF75",
+    "primaryColor": "#F7AF75",
     "secondaryColor": "#EEEEEE"
   },
   "ui": {

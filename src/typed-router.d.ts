@@ -40,6 +40,8 @@ declare module 'vue-router/auto-routes' {
     '/NotFound': RouteRecordInfo<'/NotFound', '/NotFound', Record<never, never>, Record<never, never>>,
     '/student/dialogs/CameraDialog': RouteRecordInfo<'/student/dialogs/CameraDialog', '/student/dialogs/CameraDialog', Record<never, never>, Record<never, never>>,
     '/student/dialogs/EditAnswersDialog': RouteRecordInfo<'/student/dialogs/EditAnswersDialog', '/student/dialogs/EditAnswersDialog', Record<never, never>, Record<never, never>>,
+    '/student/dialogs/ImageSamplesDialog': RouteRecordInfo<'/student/dialogs/ImageSamplesDialog', '/student/dialogs/ImageSamplesDialog', Record<never, never>, Record<never, never>>,
+    '/student/dialogs/RemindersDialog': RouteRecordInfo<'/student/dialogs/RemindersDialog', '/student/dialogs/RemindersDialog', Record<never, never>, Record<never, never>>,
     '/student/dialogs/ScoreResultDialog': RouteRecordInfo<'/student/dialogs/ScoreResultDialog', '/student/dialogs/ScoreResultDialog', Record<never, never>, Record<never, never>>,
     '/student/dialogs/SearchResultDialog': RouteRecordInfo<'/student/dialogs/SearchResultDialog', '/student/dialogs/SearchResultDialog', Record<never, never>, Record<never, never>>,
     '/student/dialogs/StudentDetailsDialog': RouteRecordInfo<'/student/dialogs/StudentDetailsDialog', '/student/dialogs/StudentDetailsDialog', Record<never, never>, Record<never, never>>,
