@@ -185,6 +185,11 @@ const rules = {
   required: (value: string) => !!value || 'This field is required'
 }
 
+const storagePublicBaseUrl = (import.meta.env.VITE_SUPABASE_STORAGE_PUBLIC_URL || `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public`)
+  .replace(/\/$/, '')
+
+const announcementsPublicPrefix = `${storagePublicBaseUrl}/announcements/`
+
 // Watch for changes in announcement prop to populate form
 watch(
   () => props.announcement,
@@ -237,7 +242,7 @@ const handleSave = async () => {
 
 const handleCancel = async () => {
   // If user uploaded a new image but is canceling, clean it up
-  if (selectedFile.value && formData.value.image_url && formData.value.image_url.includes('supabase.co/storage/v1/object/public/announcements/')) {
+  if (selectedFile.value && formData.value.image_url && formData.value.image_url.startsWith(announcementsPublicPrefix)) {
     try {
       // Extract filename from URL
       const urlParts = formData.value.image_url.split('/')
@@ -363,7 +368,7 @@ const uploadToSupabase = async (file: File) => {
     uploading.value = false
 
     // Get the public URL
-    const publicUrl = `https://vfpjlkskicwfemhgelij.supabase.co/storage/v1/object/public/announcements/${data.path}`
+    const publicUrl = `${announcementsPublicPrefix}${data.path}`
 
     // Store the public URL in form data
     formData.value.image_url = publicUrl
@@ -387,7 +392,7 @@ const uploadToSupabase = async (file: File) => {
 const removeImage = async () => {
   try {
     // If there's an image URL and it's from Supabase, delete it from storage
-    if (formData.value.image_url && formData.value.image_url.includes('supabase.co/storage/v1/object/public/announcements/')) {
+    if (formData.value.image_url && formData.value.image_url.startsWith(announcementsPublicPrefix)) {
       // Extract filename from URL
       const urlParts = formData.value.image_url.split('/')
       const fileName = urlParts[urlParts.length - 1]
