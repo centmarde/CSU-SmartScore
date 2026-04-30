@@ -1,10 +1,17 @@
 <script lang="ts" setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useLandingController } from '@/controller/landingController'
 import Sidebar1 from '@/components/common/sideBar/Sidebar.vue'
+import { useRoute } from 'vue-router'
 
 
 const { data, fetchLandingData } = useLandingController()
+
+const route = useRoute()
+const shouldHideFooter = computed(() => {
+  const path = route.path ?? ''
+  return path.startsWith('/teachertab/') /* || path.startsWith('/admin/') */
+})
 
 onMounted(async () => {
   await fetchLandingData()
@@ -47,14 +54,16 @@ onMounted(async () => {
       </slot>
     </v-main>
 
-    <OuterFooter
-      v-if="data?.ui?.footerComponent === '1'"
-      :config="data?.ui"
-    />
-    <OuterFooter2
-      v-else-if="data?.ui?.footerComponent === '2'"
-      :config="data?.ui"
-    />
+    <template v-if="!shouldHideFooter">
+      <OuterFooter
+        v-if="data?.ui?.footerComponent === '1'"
+        :config="data?.ui"
+      />
+      <OuterFooter2
+        v-else-if="data?.ui?.footerComponent === '2'"
+        :config="data?.ui"
+      />
+    </template>
   </v-app>
 </template>
 
