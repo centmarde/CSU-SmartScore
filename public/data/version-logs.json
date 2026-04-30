@@ -1,6 +1,15 @@
 {
   "versions": [
     {
+      "version": "v0.0.4",
+      "date": "2026-04-30",
+      "title": "Layout + Storage: Footer Rules & Env URLs",
+      "changes": [
+        "Disabled the inner layout footer on /teachertab/* routes to prevent layout overlap and keep those screens focused",
+        "Moved Supabase Storage public base URL to .env (VITE_SUPABASE_STORAGE_PUBLIC_URL) and removed hardcoded storage URLs from announcement uploads and answer key image links"
+      ]
+    },
+    {
       "version": "v0.0.3",
       "date": "2026-04-22",
       "title": "Student UI: Mobile UX + Answer Sheet Guidance",

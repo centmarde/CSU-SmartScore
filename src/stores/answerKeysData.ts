@@ -8,7 +8,9 @@ const BASE_DOMAIN = 'https://csu-smart-score.vercel.app';
 const QUIZ_PATH = '/student/quiz';
 
 // Define the base URL for answer images storage
-const ANSWER_IMAGES_BASE_URL = 'https://uhnqedlyxzdkveuwtmsx.supabase.co/storage/v1/object/public/answer_keys/';
+const STORAGE_PUBLIC_BASE_URL = (import.meta.env.VITE_SUPABASE_STORAGE_PUBLIC_URL || `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public`)
+    .replace(/\/$/, '');
+const ANSWER_IMAGES_BASE_URL = `${STORAGE_PUBLIC_BASE_URL}/answer_keys/`;
 
 // Define Answer Key interface
 export interface AnswerKey {

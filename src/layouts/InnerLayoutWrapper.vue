@@ -10,7 +10,7 @@ const { data, fetchLandingData } = useLandingController()
 const route = useRoute()
 const shouldHideFooter = computed(() => {
   const path = route.path ?? ''
-  return path.startsWith('/teachertab/') /* || path.startsWith('/admin/') */
+  return path.startsWith('/teachertab/') || path.startsWith('/admin/')
 })
 
 onMounted(async () => {
