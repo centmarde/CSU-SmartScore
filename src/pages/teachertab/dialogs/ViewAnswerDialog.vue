@@ -442,7 +442,7 @@ const removeSelectedAnswers = () => {
                     >
                       {{ bulkDeleteMode ? 'Cancel' : 'Bulk Edit' }}
                     </v-btn>
-                    
+
                     <template v-if="bulkDeleteMode">
                       <v-btn
                         color="info"
@@ -464,7 +464,7 @@ const removeSelectedAnswers = () => {
                         Remove ({{ selectedAnswers.size }})
                       </v-btn>
                     </template>
-                    
+
                     <v-btn
                       v-if="!bulkDeleteMode"
                       color="warning"
