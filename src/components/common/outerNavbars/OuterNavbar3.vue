@@ -196,7 +196,15 @@
           </v-badge>
 
           <!-- Hide title on mobile to minimize navbar -->
-          <div class="d-flex flex-column ms-2 d-none d-md-flex">
+          <div
+            class="d-flex flex-column ms-2 d-none d-md-flex"
+            role="button"
+            tabindex="0"
+            style="cursor: pointer"
+            @click="router.push('/')"
+            @keydown.enter.prevent="router.push('/')"
+            @keydown.space.prevent="router.push('/')"
+          >
             <span class="text-subtitle-1 font-weight-bold">
               {{ navbarConfig.title }}
             </span>

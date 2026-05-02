@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useAnswerKeysStore, type AnswerKey } from '@/stores/answerKeysData'
 import FullImageDialog from './FullImageDialog.vue'
+import VuePdfEmbed from 'vue-pdf-embed'
 
 interface AnswerKeyData {
   questions: Array<{
@@ -47,6 +48,11 @@ const answerKeyData = ref<AnswerKeyData>({
 // Computed
 const selectedAnswerKey = computed(() => answerKeysStore.selectedAnswerKey)
 const hasImage = computed(() => selectedAnswerKey.value?.answer_images)
+const isPdf = computed(() => {
+  const path = selectedAnswerKey.value?.answer_images
+  if (!path) return false
+  return path.toLowerCase().endsWith('.pdf') || path.toLowerCase().includes('.pdf?')
+})
 const imageUrl = computed(() => {
   if (!hasImage.value || !selectedAnswerKey.value?.answer_images) return null
 
@@ -60,6 +66,9 @@ const imageUrl = computed(() => {
   // Otherwise, generate the full URL using the store method
   return answerKeysStore.generateAnswerImageUrl(answerImages)
 })
+
+// For PDFs we still need the resolved URL, but we render it with a PDF viewer.
+const pdfUrl = computed(() => (isPdf.value ? imageUrl.value : null))
 
 // Watchers
 watch(model, (isOpen) => {
@@ -195,9 +204,26 @@ const closeDialog = () => {
 }
 
 const openFullImage = () => {
-  if (imageUrl.value) {
+  // Only open the full image dialog for actual images.
+  if (imageUrl.value && !isPdf.value) {
     showFullImageDialog.value = true
   }
+}
+
+const openPdfInNewTab = () => {
+  if (!pdfUrl.value) return
+  window.open(pdfUrl.value, '_blank')
+}
+
+const downloadPdf = () => {
+  if (!pdfUrl.value) return
+  const a = document.createElement('a')
+  a.href = pdfUrl.value
+  a.download = `${(selectedAnswerKey.value?.title || 'answer-key')
+    .replace(/[^a-z0-9]/gi, '_')
+    .toLowerCase()}.pdf`
+  a.target = '_blank'
+  a.click()
 }
 
 const updateNumberOfQuestions = (newCount: string | number) => {
@@ -291,7 +317,7 @@ const removeSelectedAnswers = () => {
                 Answer Key Image
               </v-card-title>
               <v-card-text>
-                <div v-if="hasImage && imageUrl" class="text-center">
+                <div v-if="hasImage && imageUrl && !isPdf" class="text-center">
                   <v-hover v-slot="{ isHovering, props: hoverProps }">
                     <v-img
                       v-bind="hoverProps"
@@ -330,6 +356,39 @@ const removeSelectedAnswers = () => {
 
                   <div class="text-caption mt-2 text-medium-emphasis">
                     Click to view fullscreen
+                  </div>
+                </div>
+                <div v-else-if="hasImage && pdfUrl" class="text-center">
+                  <v-alert type="info" variant="tonal" class="mb-3" density="compact">
+                    PDF answer key detected. Preview is shown below.
+                  </v-alert>
+
+                  <div class="pdf-preview mx-auto">
+                    <VuePdfEmbed
+                      :source="pdfUrl"
+                      class="pdf-embed"
+                    />
+                  </div>
+
+                  <div class="mt-3 d-flex justify-center gap-2 flex-wrap">
+                    <v-btn
+                      color="primary"
+                      variant="outlined"
+                      prepend-icon="mdi-open-in-new"
+                      @click="openPdfInNewTab"
+                      size="small"
+                    >
+                      Open PDF
+                    </v-btn>
+                    <v-btn
+                      color="primary"
+                      variant="flat"
+                      prepend-icon="mdi-download"
+                      @click="downloadPdf"
+                      size="small"
+                    >
+                      Download
+                    </v-btn>
                   </div>
                 </div>
                 <div v-else class="text-center pa-8">
@@ -383,7 +442,7 @@ const removeSelectedAnswers = () => {
                     >
                       {{ bulkDeleteMode ? 'Cancel' : 'Bulk Edit' }}
                     </v-btn>
-                    
+
                     <template v-if="bulkDeleteMode">
                       <v-btn
                         color="info"
@@ -405,7 +464,7 @@ const removeSelectedAnswers = () => {
                         Remove ({{ selectedAnswers.size }})
                       </v-btn>
                     </template>
-                    
+
                     <v-btn
                       v-if="!bulkDeleteMode"
                       color="warning"
@@ -600,5 +659,17 @@ const removeSelectedAnswers = () => {
 
 .delete-btn:hover {
   opacity: 1;
+}
+
+.pdf-preview {
+  max-height: 400px;
+  overflow: auto;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface));
+}
+
+.pdf-embed {
+  width: 100%;
 }
 </style>

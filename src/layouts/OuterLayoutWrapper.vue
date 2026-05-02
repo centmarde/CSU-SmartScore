@@ -24,11 +24,11 @@
 
     <!-- Dynamic Footer Selection -->
     <OuterFooter
-      v-if="data?.ui?.footerComponent === '1'"
+  v-if="!hideFooter && data?.ui?.footerComponent === '1'"
       :config="data?.ui"
     />
     <OuterFooter2
-      v-else-if="data?.ui?.footerComponent === '2'"
+  v-else-if="!hideFooter && data?.ui?.footerComponent === '2'"
       :config="data?.ui"
     />
   </v-app>
@@ -37,6 +37,7 @@
 <script lang="ts" setup>
   import { onMounted } from 'vue'
   import { computed } from 'vue'
+  import { useRoute } from 'vue-router'
   import { useDisplay } from 'vuetify'
   import OuterFooter from '@/components/common/outerFooters/OuterFooter.vue'
   import OuterFooter2 from '@/components/common/outerFooters/OuterFooter2.vue'
@@ -47,6 +48,10 @@
   import { useLandingController } from '@/controller/landingController'
 
   const { data, fetchLandingData } = useLandingController()
+
+  const route = useRoute()
+
+  const hideFooter = computed(() => route.path.startsWith('/student/quiz/'))
 
   const { mobile } = useDisplay()
   const isMobile = computed(() => mobile.value)
